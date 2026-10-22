@@ -1,30 +1,37 @@
+using System.Runtime.CompilerServices;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Logging;
-using Fika.Core.Modding;
-using Fika.Core.Modding.Events;
 using Liquidwarp.SpawnSelector.Patches;
-using Liquidwarp.SpawnSelector.Spawn;
 
 namespace Liquidwarp.SpawnSelector;
 
 [BepInPlugin(MyModInfo.MOD_GUID, MyModInfo.MOD_NAME, MyModInfo.MOD_VERSION)]
 [BepInDependency("com.SPT.custom", MyModInfo.CLIENT_SPT_VERSION)]
-[BepInDependency("com.fika.core")]
+[BepInDependency(FikaGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("com.mpstark.dynamicmaps")]
 public class Plugin : BaseUnityPlugin
 {
+    private const string FikaGuid = "com.fika.core";
+
     public static ManualLogSource LogSource;
+    public static bool FikaLoaded { get; private set; }
 
     private void Awake()
     {
         LogSource = Logger;
+        FikaLoaded = Chainloader.PluginInfos.ContainsKey(FikaGuid);
 
         MapDefCatalog.Preload();
 
         new SelectSpawnPointPatch().Enable();
-        new ReceiveSpawnPointPatch().Enable();
         new NextButtonPatch().Enable();
+        new RaidStartedPatch().Enable();
 
-        FikaEventDispatcher.SubscribeEvent<FikaRaidStartedEvent>(_ => SpawnChoiceStore.Clear());
+        if (FikaLoaded)
+            EnableFikaPatches();
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void EnableFikaPatches() => new ReceiveSpawnPointPatch().Enable();
 }

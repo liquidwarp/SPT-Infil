@@ -225,7 +225,9 @@ public class SpawnPickerWindow : InputNode
 
         if (_selected == null)
         {
-            _infoText.text = "<b>Fika's choice</b>\n\nFika spawns you as usual: with the host when the group spawns together, otherwise at a random spawn point.";
+            _infoText.text = Plugin.FikaLoaded
+                ? "<b>Fika's choice</b>\n\nFika spawns you as usual: with the host when the group spawns together, otherwise at a random spawn point."
+                : "<b>Random spawn</b>\n\nYou spawn at a random spawn point, as usual.";
             return;
         }
 

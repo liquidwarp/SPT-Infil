@@ -1,6 +1,5 @@
 using System;
 using EFT;
-using Fika.Core.Main.GameMode;
 
 namespace Liquidwarp.SpawnSelector.Spawn;
 
@@ -15,11 +14,8 @@ public static class SpawnChoiceStore
             ? _spot
             : null;
 
-    public static SpawnSpot Get(BaseGameController controller)
-    {
-        var raidSettings = controller?.RaidSettings;
-        return raidSettings == null || raidSettings.isInTransition ? null : Get(controller.Location?.Id, raidSettings.Side);
-    }
+    public static SpawnSpot Get(EPlayerSide side) =>
+        _spot != null && _side == (side == EPlayerSide.Savage ? ESideType.Savage : ESideType.Pmc) ? _spot : null;
 
     public static void Set(string locationId, ESideType side, SpawnSpot spot)
     {

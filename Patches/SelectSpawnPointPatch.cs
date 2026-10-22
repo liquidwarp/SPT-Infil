@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Comfort.Common;
 using EFT;
 using EFT.Game.Spawning;
-using Fika.Core.Main.GameMode;
 using Liquidwarp.SpawnSelector.Spawn;
 using SPT.Reflection.Patching;
 
@@ -27,7 +25,7 @@ public class SelectSpawnPointPatch : ModulePatch
 
         try
         {
-            var spot = SpawnChoiceStore.Get(Singleton<IFikaGame>.Instance?.GameController);
+            var spot = SpawnChoiceStore.Get(side);
             if (spot == null)
                 return;
 

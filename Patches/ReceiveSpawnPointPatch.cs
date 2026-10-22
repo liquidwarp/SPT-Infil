@@ -21,7 +21,7 @@ public class ReceiveSpawnPointPatch : ModulePatch
     {
         try
         {
-            var spot = SpawnChoiceStore.Get(__instance);
+            var spot = SpawnChoiceStore.Get(profile.Info.Side);
             if (spot == null || !CheckSpawnTogether(__instance))
                 return true;
 
