@@ -138,6 +138,10 @@ public class SpawnPickerWindow : InputNode
         var mapView = MapView.Create(mapArea, "MapView");
         mapView.LoadMap(mapDef, mapAreaRect);
 
+        // LoadMap adds the map's own markers (extracts, transits...): keep only ours
+        foreach (var mapMarker in mapView.MapMarkerContainer.GetComponentsInChildren<MapMarker>(true))
+            mapView.RemoveMapMarker(mapMarker);
+
         // Dims the map and its labels, under our markers; the mask clips it to the map area
         var dim = UIUtils.CreateUIGameObject(mapView.gameObject, "Dim");
         dim.GetRectTransform().sizeDelta = new Vector2(100000f, 100000f);
