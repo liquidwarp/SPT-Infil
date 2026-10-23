@@ -261,8 +261,8 @@ public class SpawnPickerWindow : InputNode
         if (_selected == null)
         {
             _infoText.text = Plugin.FikaLoaded
-                ? "<b>Fika's choice</b>\n\nFika spawns you as usual: with the host when the group spawns together, otherwise at a random spawn point."
-                : "<b>Random spawn</b>\n\nYou spawn at a random spawn point, as usual.";
+                ? "<b>Default: Fika's choice</b>\n\nFika spawns you as usual: with the host when the group spawns together, otherwise at a random spawn point."
+                : "<b>Default: Random spawn</b>\n\nYou spawn at a random spawn point, as usual.";
             return;
         }
 
@@ -275,7 +275,7 @@ public class SpawnPickerWindow : InputNode
         UpdatePulse();
 
         var where = _selected.Spot.Where;
-        var lines = new List<string> { $"<b>{_selected.Spot.Title}</b>" };
+        var lines = new List<string> { $"<b>Selected: {_selected.Spot.Label}</b>" };
         if (where != null)
             lines.Add(char.ToUpper(where[0]) + where.Substring(1));
 
