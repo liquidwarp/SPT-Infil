@@ -13,6 +13,7 @@ using Liquidwarp.Infil.Map;
 using Liquidwarp.Infil.Spawn;
 using Liquidwarp.Infil.UI;
 using SPT.Reflection.Patching;
+using UnityEngine;
 using Controller = EFT.UI.Matchmaker.MatchMakerSelectionLocationScreen.SelectionLocationScreenController;
 
 namespace Liquidwarp.Infil.Patches;
@@ -51,8 +52,11 @@ public static class LocationScreenAdvance
     private static bool _fetching;
 
     // Harmony keys patches by MethodInfo: reached through Controller, this method would get a detour apart from MapVariants' and override it
-    public static MethodInfo Declared(string name) =>
-        AccessTools.DeclaredMethod(AccessTools.Method(typeof(Controller), name).DeclaringType, name);
+    public static MethodInfo Declared(string name)
+    {
+        var method = AccessTools.Method(typeof(Controller), name);
+        return method != null ? AccessTools.DeclaredMethod(method.DeclaringType, name) : null;
+    }
 
     // The patched method is shared by every screen controller of the sequence: __instance may be another one
     public static bool Intercept(object instance, bool runOriginal, bool ready)
@@ -78,10 +82,13 @@ public static class LocationScreenAdvance
 
         _fetching = true;
         (DefaultUIButton, bool)[] buttons = [];
+        GameObject cover = null;
         string fallback;
         try
         {
             buttons = LockButtons(controller.Screen);
+            // Destroyed before rendering when nothing awaits, so it only shows while the server answers
+            cover = SpawnPickerWindow.OpenCover(controller.Screen._acceptButton);
             fallback = await TryOpenPicker(controller, location, advance);
         }
         catch (TimeoutException)
@@ -97,6 +104,8 @@ public static class LocationScreenAdvance
         {
             _fetching = false;
             UnlockButtons(buttons);
+            if (cover != null)
+                UnityEngine.Object.Destroy(cover);
         }
 
         if (fallback == null)
@@ -115,11 +124,13 @@ public static class LocationScreenAdvance
             return $"{locationId} is reached by transit";
 
         var mapDef = MapDefCatalog.Find(locationId);
+        if (mapDef == null)
+            return $"No DynamicMaps map for {locationId}";
+
         if (MapVariantsMaps.Manages(locationId))
         {
             // Straight from MapVariants' window, whose choice the server just acknowledged
-            var chosen = MapVariantsMaps.ChoseBackport(locationId);
-            var backport = chosen;
+            var backport = MapVariantsMaps.ChoseBackport(locationId);
             if (backport == null)
             {
                 backport = await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
@@ -132,29 +143,14 @@ public static class LocationScreenAdvance
 
             if (backport.Value)
                 return $"No DynamicMaps map for the backport {locationId}";
-            if (mapDef == null)
-                return $"No DynamicMaps map for {locationId}";
 
-            var cover = chosen != null ? SpawnPickerWindow.OpenCover() : null;
-            try
-            {
-                location = await OriginalLocation(location);
-            }
-            finally
-            {
-                if (cover != null)
-                    UnityEngine.Object.Destroy(cover);
-            }
-
+            location = await OriginalLocation(location);
             if (!StillShowing(controller, locationId))
                 return null;
 
             if (location == null)
                 return $"The server sent no data for {locationId}";
         }
-
-        if (mapDef == null)
-            return $"No DynamicMaps map for {locationId}";
 
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;

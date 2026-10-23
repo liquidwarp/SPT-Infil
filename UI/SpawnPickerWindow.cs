@@ -106,10 +106,13 @@ public class SpawnPickerWindow : InputNode
     }
 
     /// The picker's backdrop alone, to hide the location screen while the server answers
-    public static GameObject OpenCover()
+    public static GameObject OpenCover(DefaultUIButton ownerButton)
     {
         var root = CreateCanvas("InfilCover");
-        CreateBackground(root);
+        var background = CreateBackground(root);
+        var text = CreateText(background, "Loading", ownerButton._headerLabel != null ? ownerButton._headerLabel.font : null, 24f, FontStyles.Normal);
+        text.text = "LOADING SPAWN POINTS...\n<size=70%><color=#B3B3B3>Esc to go back</color></size>";
+        text.rectTransform.sizeDelta = new Vector2(800f, 100f);
         return root;
     }
 
