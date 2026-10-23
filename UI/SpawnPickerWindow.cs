@@ -44,6 +44,7 @@ public class SpawnPickerWindow : InputNode
     };
 
     private static SpawnPickerWindow _instance;
+    private static GameObject _cover;
     private static Sprite _dotSprite;
     private static Sprite _ringSprite;
 
@@ -106,15 +107,24 @@ public class SpawnPickerWindow : InputNode
     }
 
     /// The picker's backdrop alone, to hide the location screen while the server answers
-    public static GameObject OpenCover(DefaultUIButton ownerButton)
+    public static void OpenCover(DefaultUIButton ownerButton)
     {
-        var root = CreateCanvas("InfilCover");
-        var background = CreateBackground(root);
-        var text = CreateText(background, "Loading", ownerButton._headerLabel != null ? ownerButton._headerLabel.font : null, 24f, FontStyles.Normal);
+        CloseCover();
+        _cover = CreateCanvas("InfilCover");
+        var text = CreateText(CreateBackground(_cover), "Loading", HeaderFont(ownerButton), 24f, FontStyles.Normal);
         text.text = "LOADING SPAWN POINTS...\n<size=70%><color=#B3B3B3>Esc to go back</color></size>";
         text.rectTransform.sizeDelta = new Vector2(800f, 100f);
-        return root;
     }
+
+    public static void CloseCover()
+    {
+        if (_cover != null)
+            Destroy(_cover);
+        _cover = null;
+    }
+
+    private static TMP_FontAsset HeaderFont(DefaultUIButton button) =>
+        button._headerLabel != null ? button._headerLabel.font : null;
 
     private static GameObject CreateCanvas(string name)
     {
@@ -227,7 +237,7 @@ public class SpawnPickerWindow : InputNode
 
     private void BuildPanel(GameObject parent)
     {
-        var font = _ownerButton._headerLabel != null ? _ownerButton._headerLabel.font : null;
+        var font = HeaderFont(_ownerButton);
 
         var panel = UIUtils.CreateUIGameObject(parent, "Panel");
         var panelRect = panel.GetRectTransform();

@@ -13,15 +13,15 @@ using Liquidwarp.Infil.Map;
 using Liquidwarp.Infil.Spawn;
 using Liquidwarp.Infil.UI;
 using SPT.Reflection.Patching;
-using UnityEngine;
 using Controller = EFT.UI.Matchmaker.MatchMakerSelectionLocationScreen.SelectionLocationScreenController;
 
 namespace Liquidwarp.Infil.Patches;
 
 public class NextScreenPatch : ModulePatch
 {
+    // Harmony keys patches by MethodInfo: reached through Controller, this method would get a detour apart from MapVariants' and override it
     protected override MethodBase GetTargetMethod() =>
-        LocationScreenAdvance.Declared(nameof(Controller.ShowNextScreen));
+        AccessTools.Method(typeof(Controller), nameof(Controller.ShowNextScreen))?.GetDeclaredMember();
 
     [PatchPrefix]
     [HarmonyPriority(Priority.Low)]
@@ -32,7 +32,7 @@ public class NextScreenPatch : ModulePatch
 public class ReadyScreenPatch : ModulePatch
 {
     protected override MethodBase GetTargetMethod() =>
-        LocationScreenAdvance.Declared(nameof(Controller.ShowReadyScreen));
+        AccessTools.Method(typeof(Controller), nameof(Controller.ShowReadyScreen))?.GetDeclaredMember();
 
     [PatchPrefix]
     [HarmonyPriority(Priority.Low)]
@@ -50,13 +50,6 @@ public static class LocationScreenAdvance
     private static readonly Dictionary<string, LocationSettings.Location> OriginalLocations = new();
 
     private static bool _fetching;
-
-    // Harmony keys patches by MethodInfo: reached through Controller, this method would get a detour apart from MapVariants' and override it
-    public static MethodInfo Declared(string name)
-    {
-        var method = AccessTools.Method(typeof(Controller), name);
-        return method != null ? AccessTools.DeclaredMethod(method.DeclaringType, name) : null;
-    }
 
     // The patched method is shared by every screen controller of the sequence: __instance may be another one
     public static bool Intercept(object instance, bool runOriginal, bool ready)
@@ -82,14 +75,14 @@ public static class LocationScreenAdvance
 
         _fetching = true;
         (DefaultUIButton, bool)[] buttons = [];
-        GameObject cover = null;
         string fallback;
         try
         {
             buttons = LockButtons(controller.Screen);
-            // Destroyed before rendering when nothing awaits, so it only shows while the server answers
-            cover = SpawnPickerWindow.OpenCover(controller.Screen._acceptButton);
-            fallback = await TryOpenPicker(controller, location, advance);
+            var opening = TryOpenPicker(controller, location, advance);
+            if (!opening.IsCompleted)
+                SpawnPickerWindow.OpenCover(controller.Screen._acceptButton);
+            fallback = await opening;
         }
         catch (TimeoutException)
         {
@@ -104,8 +97,7 @@ public static class LocationScreenAdvance
         {
             _fetching = false;
             UnlockButtons(buttons);
-            if (cover != null)
-                UnityEngine.Object.Destroy(cover);
+            SpawnPickerWindow.CloseCover();
         }
 
         if (fallback == null)
@@ -130,17 +122,12 @@ public static class LocationScreenAdvance
         if (MapVariantsMaps.Manages(locationId))
         {
             // Straight from MapVariants' window, whose choice the server just acknowledged
-            var backport = MapVariantsMaps.ChoseBackport(locationId);
+            var backport = MapVariantsMaps.ChoseBackport(locationId) ?? await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
+            if (!StillShowing(controller, locationId))
+                return null;
+
             if (backport == null)
-            {
-                backport = await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
-                if (!StillShowing(controller, locationId))
-                    return null;
-
-                if (backport == null)
-                    return $"The server did not say which {locationId} it serves";
-            }
-
+                return $"The server did not say which {locationId} it serves";
             if (backport.Value)
                 return $"No DynamicMaps map for the backport {locationId}";
 

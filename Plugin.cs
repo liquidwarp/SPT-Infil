@@ -45,6 +45,7 @@ public class Plugin : BaseUnityPlugin
     private void OnDestroy()
     {
         SpawnPickerWindow.CloseOpen();
+        SpawnPickerWindow.CloseCover();
         ConfirmationScreenPatch.RemoveText();
         _patchManager?.DisablePatches();
     }
