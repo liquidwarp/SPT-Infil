@@ -8,7 +8,6 @@ using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
-using Liquidwarp.Infil.Map;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
@@ -73,13 +72,9 @@ public class SpawnPickerWindow : InputNode
         MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = AlwaysShown;
     }
 
-    public static bool Open(LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
+    public static bool Open(MapDef mapDef, LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
     {
         CloseOpen();
-
-        var mapDef = MapDefCatalog.Find(location.Id);
-        if (mapDef == null)
-            return false;
 
         var root = new GameObject("InfilPicker", typeof(RectTransform));
         var canvas = root.AddComponent<Canvas>();
@@ -156,6 +151,8 @@ public class SpawnPickerWindow : InputNode
         var mapView = MapView.Create(mapArea, "MapView");
         mapView.LoadMap(mapDef, mapAreaRect);
         var layers = mapView.MapLayerContainer.GetComponentsInChildren<MapLayer>(true);
+        if (layers.Length > 0)
+            mapView.SelectTopLevel(layers.Max(layer => layer.Level));
         ShowAllLevels(mapView, layers);
 
         // LoadMap adds the map's own markers (extracts, transits...): keep only ours
@@ -179,7 +176,7 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.AddComponent<Canvas>();
         _pulse.gameObject.SetActive(false);
 
-        foreach (var spot in SpawnSpots.For(_location, _playerSide))
+        foreach (var spot in SpawnSpots.For(_location, _playerSide, mapDef))
         {
             var marker = mapView.AddMapMarker(new MapMarkerDef
             {

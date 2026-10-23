@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DynamicMaps.Data;
 using DynamicMaps.Utils;
 using EFT;
 using EFT.Game.Spawning;
@@ -36,23 +37,23 @@ public static class SpawnSpots
         ["Sandbox_high"] = 100f,
     };
 
-    private static readonly Dictionary<(string, EPlayerSide), (SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
+    private static readonly Dictionary<(string, EPlayerSide), (SpawnPointParams[] Source, MapDef MapDef, List<SpawnSpot> Spots)> Cache = new();
 
-    public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side)
+    public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side, MapDef mapDef)
     {
         var source = location.SpawnPointParams ?? [];
-        if (Cache.TryGetValue((location.Id, side), out var cached) && SameSpawnPoints(cached.Source, source))
+        if (Cache.TryGetValue((location.Id, side), out var cached) && cached.MapDef == mapDef && SameSpawnPoints(cached.Source, source))
             return cached.Spots;
 
-        var spots = Build(location, source, side);
-        Cache[(location.Id, side)] = (source, spots);
+        var spots = Build(location, source, side, mapDef);
+        Cache[(location.Id, side)] = (source, mapDef, spots);
         return spots;
     }
 
     private static bool SameSpawnPoints(SpawnPointParams[] a, SpawnPointParams[] b) =>
         a == b || a.Select(point => point.Id).SequenceEqual(b.Select(point => point.Id));
 
-    private static List<SpawnSpot> Build(LocationSettings.Location location, SpawnPointParams[] source, EPlayerSide side)
+    private static List<SpawnSpot> Build(LocationSettings.Location location, SpawnPointParams[] source, EPlayerSide side, MapDef mapDef)
     {
         var points = source
             .Where(point => point.Categories.ContainPlayerCategory() && point.Sides.Contain(side) && point.Position != null)
@@ -60,7 +61,6 @@ public static class SpawnSpots
         var positions = points.Select(point => (Vector3)point.Position).ToList();
 
         var maxSpread = MaxSpreadByLocation.TryGetValue(location.Id, out var spread) ? spread : DefaultMaxSpread;
-        var mapDef = MapDefCatalog.Find(location.Id);
 
         return Cluster(positions, maxSpread)
             .Select((members, index) =>

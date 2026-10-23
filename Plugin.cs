@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
+using Liquidwarp.Infil.Compat;
 using Liquidwarp.Infil.Patches;
 using Liquidwarp.Infil.UI;
 using SPT.Reflection.Patching;
@@ -11,6 +12,7 @@ namespace Liquidwarp.Infil;
 [BepInPlugin(MyModInfo.MOD_GUID, MyModInfo.MOD_NAME, MyModInfo.MOD_VERSION)]
 [BepInDependency("com.SPT.custom", MyModInfo.CLIENT_SPT_VERSION)]
 [BepInDependency(FikaGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(MapVariantsMaps.Guid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("com.mpstark.dynamicmaps")]
 public class Plugin : BaseUnityPlugin
 {
@@ -25,6 +27,7 @@ public class Plugin : BaseUnityPlugin
     {
         LogSource = Logger;
         FikaLoaded = Chainloader.PluginInfos.ContainsKey(FikaGuid);
+        MapVariantsMaps.Preload();
 
         _patchManager = new PatchManager(this);
         _patchManager.AddPatch(new SelectSpawnPointPatch());
