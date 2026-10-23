@@ -7,7 +7,7 @@ using DynamicMaps.Data;
 using DynamicMaps.Utils;
 using UnityEngine;
 
-namespace Liquidwarp.SpawnSelector;
+namespace Liquidwarp.Infil;
 
 public static class MapDefCatalog
 {

@@ -2,11 +2,11 @@ using System.Runtime.CompilerServices;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
-using Liquidwarp.SpawnSelector.Patches;
-using Liquidwarp.SpawnSelector.UI;
+using Liquidwarp.Infil.Patches;
+using Liquidwarp.Infil.UI;
 using SPT.Reflection.Patching;
 
-namespace Liquidwarp.SpawnSelector;
+namespace Liquidwarp.Infil;
 
 [BepInPlugin(MyModInfo.MOD_GUID, MyModInfo.MOD_NAME, MyModInfo.MOD_VERSION)]
 [BepInDependency("com.SPT.custom", MyModInfo.CLIENT_SPT_VERSION)]

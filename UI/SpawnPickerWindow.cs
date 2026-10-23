@@ -8,17 +8,17 @@ using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
-using Liquidwarp.SpawnSelector.Spawn;
+using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace Liquidwarp.SpawnSelector.UI;
+namespace Liquidwarp.Infil.UI;
 
 public class SpawnPickerWindow : InputNode
 {
-    private const string MarkerCategory = "SpawnSelector";
+    private const string MarkerCategory = "Infil";
 
     private static readonly Vector2 MapSize = new(1320f, 940f);
     private static readonly Vector2 PanelSize = new(460f, 940f);
@@ -80,7 +80,7 @@ public class SpawnPickerWindow : InputNode
         if (mapDef == null)
             return;
 
-        var root = new GameObject("SpawnSelectorPicker", typeof(RectTransform));
+        var root = new GameObject("InfilPicker", typeof(RectTransform));
         var canvas = root.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 1000;

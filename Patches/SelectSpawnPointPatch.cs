@@ -4,10 +4,10 @@ using System.Linq;
 using System.Reflection;
 using EFT;
 using EFT.Game.Spawning;
-using Liquidwarp.SpawnSelector.Spawn;
+using Liquidwarp.Infil.Spawn;
 using SPT.Reflection.Patching;
 
-namespace Liquidwarp.SpawnSelector.Patches;
+namespace Liquidwarp.Infil.Patches;
 
 public class SelectSpawnPointPatch : ModulePatch
 {

@@ -2,7 +2,7 @@ using System;
 using Comfort.Common;
 using EFT;
 
-namespace Liquidwarp.SpawnSelector.Spawn;
+namespace Liquidwarp.Infil.Spawn;
 
 public static class SpawnChoiceStore
 {

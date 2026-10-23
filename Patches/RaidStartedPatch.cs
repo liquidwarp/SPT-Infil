@@ -1,10 +1,10 @@
 using System.Reflection;
 using EFT;
 using HarmonyLib;
-using Liquidwarp.SpawnSelector.Spawn;
+using Liquidwarp.Infil.Spawn;
 using SPT.Reflection.Patching;
 
-namespace Liquidwarp.SpawnSelector.Patches;
+namespace Liquidwarp.Infil.Patches;
 
 public class RaidStartedPatch : ModulePatch
 {

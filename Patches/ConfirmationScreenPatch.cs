@@ -3,13 +3,13 @@ using System.Reflection;
 using EFT;
 using EFT.UI.Matchmaker;
 using HarmonyLib;
-using Liquidwarp.SpawnSelector.Spawn;
-using Liquidwarp.SpawnSelector.UI;
+using Liquidwarp.Infil.Spawn;
+using Liquidwarp.Infil.UI;
 using SPT.Reflection.Patching;
 using TMPro;
 using UnityEngine;
 
-namespace Liquidwarp.SpawnSelector.Patches;
+namespace Liquidwarp.Infil.Patches;
 
 public class ConfirmationScreenPatch : ModulePatch
 {
@@ -55,7 +55,7 @@ public class ConfirmationScreenPatch : ModulePatch
 
     private static TextMeshProUGUI CreateText(TextMeshProUGUI locationName)
     {
-        var text = SpawnPickerWindow.CreateText(locationName.gameObject, "SpawnSelectorSpawnArea", locationName.font, 20f, FontStyles.Normal);
+        var text = SpawnPickerWindow.CreateText(locationName.gameObject, "InfilSpawnArea", locationName.font, 20f, FontStyles.Normal);
         text.color = new Color(0.7f, 0.7f, 0.7f);
         text.alignment = TextAlignmentOptions.TopLeft;
         text.enableWordWrapping = false;

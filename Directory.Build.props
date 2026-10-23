@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <Authors>Liquidwarp</Authors>
-        <ModName>SpawnSelector</ModName>
+        <ModName>Infil</ModName>
         <ModGuidPrefix>net.liquidwarp</ModGuidPrefix>
         <Version>1.0.0</Version>
         <ClientSPTVersion>4.1.6</ClientSPTVersion>

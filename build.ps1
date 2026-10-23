@@ -22,7 +22,7 @@ if ($HotReload -and -not $InstallMod) {
 }
 
 $buildArgs = @(
-    "$PSScriptRoot\SpawnSelector.slnx"
+    "$PSScriptRoot\Infil.slnx"
     "-c", $Configuration
     "-p:SPTPath=$SPTPath"
     "-p:InstallMod=$($InstallMod.IsPresent)"

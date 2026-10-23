@@ -7,7 +7,7 @@ using EFT.Game.Spawning;
 using JsonType;
 using UnityEngine;
 
-namespace Liquidwarp.SpawnSelector.Spawn;
+namespace Liquidwarp.Infil.Spawn;
 
 public class SpawnSpot
 {

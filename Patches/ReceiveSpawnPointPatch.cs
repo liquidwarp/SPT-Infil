@@ -4,10 +4,10 @@ using System.Threading.Tasks;
 using EFT;
 using Fika.Core.Main.GameMode;
 using HarmonyLib;
-using Liquidwarp.SpawnSelector.Spawn;
+using Liquidwarp.Infil.Spawn;
 using SPT.Reflection.Patching;
 
-namespace Liquidwarp.SpawnSelector.Patches;
+namespace Liquidwarp.Infil.Patches;
 public class ReceiveSpawnPointPatch : ModulePatch
 {
     private static readonly Func<ClientGameController, bool> CheckSpawnTogether =

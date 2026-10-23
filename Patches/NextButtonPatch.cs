@@ -2,10 +2,10 @@ using System.Reflection;
 using EFT;
 using EFT.UI.Matchmaker;
 using HarmonyLib;
-using Liquidwarp.SpawnSelector.UI;
+using Liquidwarp.Infil.UI;
 using SPT.Reflection.Patching;
 
-namespace Liquidwarp.SpawnSelector.Patches;
+namespace Liquidwarp.Infil.Patches;
 
 public class NextButtonPatch : ModulePatch
 {
