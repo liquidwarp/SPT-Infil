@@ -117,24 +117,35 @@ public static class LocationScreenAdvance
         var mapDef = MapDefCatalog.Find(locationId);
         if (MapVariantsMaps.Manages(locationId))
         {
+            // Straight from MapVariants' window, whose choice the server just acknowledged
             var chosen = MapVariantsMaps.ChoseBackport(locationId);
-            var served = await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
-            if (!StillShowing(controller, locationId))
-                return null;
+            var backport = chosen;
+            if (backport == null)
+            {
+                backport = await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
+                if (!StillShowing(controller, locationId))
+                    return null;
 
-            if (served == null)
-                return $"The server did not say which {locationId} it serves";
+                if (backport == null)
+                    return $"The server did not say which {locationId} it serves";
+            }
 
-            var backport = served.Value;
-            if (chosen != null && chosen != backport)
-                return $"The server is not serving the {Variant(chosen.Value)} {locationId}";
-
-            if (backport)
+            if (backport.Value)
                 mapDef = DynamicMapsExtendedMaps.FindBackport(locationId);
             if (mapDef == null)
-                return $"No DynamicMaps map for the {Variant(backport)} {locationId}";
+                return $"No DynamicMaps map for the {Variant(backport.Value)} {locationId}";
 
-            location = await VariantLocation(location, backport);
+            var cover = chosen != null ? SpawnPickerWindow.OpenCover() : null;
+            try
+            {
+                location = await VariantLocation(location, backport.Value);
+            }
+            finally
+            {
+                if (cover != null)
+                    UnityEngine.Object.Destroy(cover);
+            }
+
             if (!StillShowing(controller, locationId))
                 return null;
 

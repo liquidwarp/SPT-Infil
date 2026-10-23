@@ -75,16 +75,7 @@ public class SpawnPickerWindow : InputNode
     {
         CloseOpen();
 
-        var root = new GameObject("InfilPicker", typeof(RectTransform));
-        var canvas = root.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 1000;
-        var scaler = root.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Shrink;
-        root.AddComponent<GraphicRaycaster>();
-
+        var root = CreateCanvas("InfilPicker");
         _instance = root.AddComponent<SpawnPickerWindow>();
         _instance._location = location;
         _instance._side = side;
@@ -114,14 +105,42 @@ public class SpawnPickerWindow : InputNode
             Destroy(_instance.gameObject);
     }
 
-    private void Build(MapDef mapDef, EPlayerSide playerSide)
+    /// The picker's backdrop alone, to hide the location screen while the server answers
+    public static GameObject OpenCover()
     {
-        var background = UIUtils.CreateUIGameObject(gameObject, "Background");
+        var root = CreateCanvas("InfilCover");
+        CreateBackground(root);
+        return root;
+    }
+
+    private static GameObject CreateCanvas(string name)
+    {
+        var root = new GameObject(name, typeof(RectTransform));
+        var canvas = root.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 1000;
+        var scaler = root.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Shrink;
+        root.AddComponent<GraphicRaycaster>();
+        return root;
+    }
+
+    private static GameObject CreateBackground(GameObject parent)
+    {
+        var background = UIUtils.CreateUIGameObject(parent, "Background");
         var backgroundRect = background.GetRectTransform();
         backgroundRect.anchorMin = Vector2.zero;
         backgroundRect.anchorMax = Vector2.one;
         backgroundRect.offsetMin = backgroundRect.offsetMax = Vector2.zero;
         background.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.9f);
+        return background;
+    }
+
+    private void Build(MapDef mapDef, EPlayerSide playerSide)
+    {
+        var background = CreateBackground(gameObject);
 
         BuildMap(background, mapDef, playerSide);
         BuildPanel(background);
