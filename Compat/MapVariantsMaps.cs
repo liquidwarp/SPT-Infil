@@ -44,6 +44,15 @@ public static class MapVariantsMaps
         return serverManages?.Contains(locationId) ?? _clientManages != null;
     }
 
+    public static bool Prompts(string locationId)
+    {
+        if (locationId == null || !Loaded)
+            return false;
+
+        LoadApi();
+        return _clientManages?.Invoke(locationId) == true;
+    }
+
     public static bool? ChoseBackport(string locationId)
     {
         LoadApi();
@@ -57,6 +66,9 @@ public static class MapVariantsMaps
     public static async Task<bool?> ServesBackport(string locationId)
     {
         var json = await RequestHandler.GetJsonAsync($"/mapvariants/hostvariant?locationId={Uri.EscapeDataString(locationId)}");
+        if (string.IsNullOrEmpty(json))
+            return null;
+
         var variant = ((string)JObject.Parse(json)["variant"])?.Trim();
         if (string.IsNullOrEmpty(variant) || string.Equals(variant, Unmanaged, StringComparison.OrdinalIgnoreCase))
             return null;

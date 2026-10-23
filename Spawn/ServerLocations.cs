@@ -16,7 +16,7 @@ public static class ServerLocations
     public static async Task<LocationSettings.Location> Fetch(string locationId)
     {
         var json = await RequestHandler.GetJsonAsync("/client/locations");
-        return await Task.Run(() => Extract(json, locationId));
+        return string.IsNullOrEmpty(json) ? null : await Task.Run(() => Extract(json, locationId));
     }
 
     private static LocationSettings.Location Extract(string json, string locationId)

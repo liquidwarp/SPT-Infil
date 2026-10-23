@@ -12,7 +12,6 @@ public static class DynamicMapsExtendedMaps
         ["interchange"] = "dmext_interchange_backport",
         ["factory4_day"] = "dmext_factory_classic",
         ["factory4_night"] = "dmext_factory_classic",
-        ["laboratory"] = "dmext_laboratory_backport",
     };
 
     public static MapDef FindBackport(string locationId) =>

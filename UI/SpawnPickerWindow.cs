@@ -128,8 +128,8 @@ public class SpawnPickerWindow : InputNode
         BuildMap(background, mapDef);
         BuildPanel(background);
 
-        var label = SpawnChoiceStore.Get(_location.Id, _side)?.Label;
-        Select(_markers.FirstOrDefault(marker => marker.Spot.Label == label));
+        var chosen = SpawnChoiceStore.Get(_location.Id, _side);
+        Select(chosen != null ? _markers.FirstOrDefault(marker => marker.Spot.PointIds.SetEquals(chosen.PointIds)) : null);
     }
 
     private void BuildMap(GameObject parent, MapDef mapDef)
