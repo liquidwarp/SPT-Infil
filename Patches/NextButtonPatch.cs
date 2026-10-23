@@ -34,12 +34,17 @@ public class NextButtonPatch : ModulePatch
         {
             var location = screen.SelectedLocation;
             var raidSettings = RaidSettings(screen);
-            if (location != null && !raidSettings.isInTransition && MapDefCatalog.Find(location.Id) != null)
+            if (location != null && !raidSettings.isInTransition)
             {
-                var side = raidSettings.Side;
-                var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : Profile(screen).Info.Side;
-                SpawnPickerWindow.Open(location, side, playerSide, screen, screen._acceptButton, () => ScreenController(screen).ShowNextScreen());
-                return;
+                if (MapDefCatalog.Find(location.Id) != null)
+                {
+                    var side = raidSettings.Side;
+                    var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : Profile(screen).Info.Side;
+                    SpawnPickerWindow.Open(location, side, playerSide, screen, screen._acceptButton, () => ScreenController(screen).ShowNextScreen());
+                    return;
+                }
+
+                Plugin.LogSource.LogInfo($"No DynamicMaps map for {location.Id}, using vanilla spawns");
             }
         }
         catch (System.Exception ex)
