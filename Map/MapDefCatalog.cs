@@ -7,7 +7,7 @@ using DynamicMaps.Utils;
 using HarmonyLib;
 using UnityEngine;
 
-namespace Liquidwarp.Infil;
+namespace Liquidwarp.Infil.Map;
 
 public static class MapDefCatalog
 {

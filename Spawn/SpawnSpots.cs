@@ -5,6 +5,7 @@ using DynamicMaps.Utils;
 using EFT;
 using EFT.Game.Spawning;
 using JsonType;
+using Liquidwarp.Infil.Map;
 using UnityEngine;
 
 namespace Liquidwarp.Infil.Spawn;

@@ -1,6 +1,7 @@
 using System;
 using Comfort.Common;
 using EFT;
+using Liquidwarp.Infil.Map;
 
 namespace Liquidwarp.Infil.Spawn;
 

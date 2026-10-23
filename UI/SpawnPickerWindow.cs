@@ -8,6 +8,7 @@ using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
+using Liquidwarp.Infil.Map;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
@@ -72,13 +73,13 @@ public class SpawnPickerWindow : InputNode
         MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = AlwaysShown;
     }
 
-    public static void Open(LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
+    public static bool Open(LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
     {
         CloseOpen();
 
         var mapDef = MapDefCatalog.Find(location.Id);
         if (mapDef == null)
-            return;
+            return false;
 
         var root = new GameObject("InfilPicker", typeof(RectTransform));
         var canvas = root.AddComponent<Canvas>();
@@ -104,11 +105,13 @@ public class SpawnPickerWindow : InputNode
         try
         {
             _instance.Build(mapDef);
+            return true;
         }
         catch (Exception ex)
         {
             Plugin.LogSource.LogError($"Could not open the spawn picker: {ex}");
             Destroy(root);
+            return false;
         }
     }
 
