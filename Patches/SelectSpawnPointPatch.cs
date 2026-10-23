@@ -52,10 +52,7 @@ public class SelectSpawnPointPatch : ModulePatch
         if (usable.Count > 0)
             points = usable;
 
-        var others = spawnSystem._players.Where(p => p != person).Select(p => p.Position).ToList();
-        var safe = points.Where(p => others.All(o => (o - p.Position).sqrMagnitude >= spawnSystem._settings.SpawnSafeDistanceSqr)).ToList();
-        return safe.Count > 0
-            ? safe.RandomElement()
-            : points.OrderByDescending(p => others.Min(o => (o - p.Position).sqrMagnitude)).First();
+        var others = spawnSystem._players.Except(person).ToList();
+        return points.FarthestFromPlayersOnDistanceWithRandom(others, spawnSystem._settings.SpawnSafeDistanceSqr) ?? points.RandomElement();
     }
 }

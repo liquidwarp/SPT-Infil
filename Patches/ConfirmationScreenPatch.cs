@@ -45,8 +45,7 @@ public class ConfirmationScreenPatch : ModulePatch
 
     private static string Describe(RaidSettings raidSettings)
     {
-        var location = raidSettings.SelectedLocation;
-        var spot = location != null ? SpawnChoiceStore.Get(location.Id, raidSettings.Side) : null;
+        var spot = SpawnChoiceStore.Get(raidSettings.Side);
         if (spot == null)
             return null;
 

@@ -44,15 +44,6 @@ public static class MapVariantsMaps
         return serverManages?.Contains(locationId) ?? _clientManages != null;
     }
 
-    public static bool Prompts(string locationId)
-    {
-        if (locationId == null || !Loaded)
-            return false;
-
-        LoadApi();
-        return _clientManages?.Invoke(locationId) == true;
-    }
-
     public static bool? ChoseBackport(string locationId)
     {
         LoadApi();

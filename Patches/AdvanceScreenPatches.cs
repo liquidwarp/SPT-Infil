@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using DynamicMaps.Data;
 using EFT;
 using EFT.UI;
 using EFT.UI.Matchmaker;
@@ -50,110 +48,46 @@ public static class LocationScreenAdvance
 
     private static readonly Dictionary<(string, bool), LocationSettings.Location> VariantLocations = new();
 
-    private static bool _passThrough;
     private static bool _fetching;
 
+    // The patched method is shared by every screen controller of the sequence: __instance may be another one
     public static bool Intercept(object instance, bool runOriginal, bool ready)
     {
-        if (instance is not Controller controller)
-            return true;
-
-        if (_passThrough)
-        {
-            _passThrough = false;
-            return true;
-        }
-
-        if (!runOriginal)
+        if (instance is not Controller controller || !runOriginal)
             return true;
 
         if (_fetching)
             return false;
 
-        try
-        {
-            var location = controller.Screen.SelectedLocation;
-            if (location == null)
-                return true;
-
-            if (controller.RaidSettings.isInTransition)
-            {
-                UseDefaultSpawns($"{location.Id} is reached by transit");
-                return true;
-            }
-
-            // MapVariants' own prefix prompts again unless we skip it
-            var skipPatches = MapVariantsMaps.Prompts(location.Id);
-            Action advance = () => Advance(controller, ready, skipPatches);
-
-            if (!MapVariantsMaps.Manages(location.Id))
-                return !OpenPicker(controller, location, MapDefCatalog.Find(location.Id), advance);
-
-            OpenForVariant(controller, location.Id, MapVariantsMaps.ChoseBackport(location.Id), advance);
-            return false;
-        }
-        catch (Exception ex)
-        {
-            Plugin.LogSource.LogError($"Could not open the spawn picker: {ex}");
-            SpawnChoiceStore.Clear();
+        var location = controller.Screen.SelectedLocation;
+        if (location == null)
             return true;
-        }
+
+        Offer(controller, location, ready);
+        return false;
     }
 
-    private static async void OpenForVariant(Controller controller, string locationId, bool? chosen, Action advance)
+    private static async void Offer(Controller controller, LocationSettings.Location location, bool ready)
     {
+        // The original only invokes this, and calling it directly keeps MapVariants from prompting again
+        Action advance = () => (ready ? controller._onShowReadyScreen : controller._onShowNextScreen)?.Invoke();
+
         _fetching = true;
-        var buttons = LockButtons(controller.Screen);
-        var opened = false;
+        (DefaultUIButton, bool)[] buttons = [];
+        string fallback;
         try
         {
-            var served = await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
-            if (!StillShowing(controller, locationId))
-                return;
-
-            if (served == null)
-            {
-                UseDefaultSpawns($"The server did not say which {locationId} it serves");
-            }
-            else if (chosen != null && chosen != served)
-            {
-                UseDefaultSpawns($"The server is not serving the {Variant(chosen.Value)} {locationId}");
-            }
-            else
-            {
-                var backport = served.Value;
-                var mapDef = backport ? DynamicMapsExtendedMaps.FindBackport(locationId) : MapDefCatalog.Find(locationId);
-                if (mapDef == null)
-                {
-                    UseDefaultSpawns($"No DynamicMaps map for the {Variant(backport)} {locationId}");
-                }
-                else
-                {
-                    if (!VariantLocations.TryGetValue((locationId, backport), out var location))
-                    {
-                        location = await WithTimeout(ServerLocations.Fetch(locationId));
-                        if (!StillShowing(controller, locationId))
-                            return;
-
-                        if (location != null)
-                            VariantLocations[(locationId, backport)] = location;
-                    }
-
-                    if (location == null)
-                        UseDefaultSpawns($"The server sent no data for {locationId}");
-                    else
-                        opened = OpenPicker(controller, location, mapDef, advance);
-                }
-            }
+            buttons = LockButtons(controller.Screen);
+            fallback = await TryOpenPicker(controller, location, advance);
         }
         catch (TimeoutException)
         {
-            UseDefaultSpawns($"The server took over {ServerTimeout.TotalSeconds:0} seconds to answer");
+            fallback = $"The server took over {ServerTimeout.TotalSeconds:0} seconds to answer";
         }
         catch (Exception ex)
         {
             Plugin.LogSource.LogError($"Could not open the spawn picker: {ex}");
-            SpawnChoiceStore.Clear();
+            fallback = "The spawn picker failed";
         }
         finally
         {
@@ -161,41 +95,71 @@ public static class LocationScreenAdvance
             UnlockButtons(buttons);
         }
 
-        if (!opened && StillShowing(controller, locationId))
-            advance();
+        if (fallback == null)
+            return;
+
+        SpawnChoiceStore.Clear();
+        Plugin.LogSource.LogInfo($"{fallback}, using default spawns");
+        advance();
     }
 
-    private static bool OpenPicker(Controller controller, LocationSettings.Location location, MapDef mapDef, Action advance)
+    /// Null when the picker opened, or when the player left the map while the server answered
+    private static async Task<string> TryOpenPicker(Controller controller, LocationSettings.Location location, Action advance)
     {
-        if (mapDef == null)
+        var locationId = location.Id;
+        if (controller.RaidSettings.isInTransition)
+            return $"{locationId} is reached by transit";
+
+        var mapDef = MapDefCatalog.Find(locationId);
+        if (MapVariantsMaps.Manages(locationId))
         {
-            UseDefaultSpawns($"No DynamicMaps map for {location.Id}");
-            return false;
+            var chosen = MapVariantsMaps.ChoseBackport(locationId);
+            var served = await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
+            if (!StillShowing(controller, locationId))
+                return null;
+
+            if (served == null)
+                return $"The server did not say which {locationId} it serves";
+
+            var backport = served.Value;
+            if (chosen != null && chosen != backport)
+                return $"The server is not serving the {Variant(chosen.Value)} {locationId}";
+
+            if (backport)
+                mapDef = DynamicMapsExtendedMaps.FindBackport(locationId);
+            if (mapDef == null)
+                return $"No DynamicMaps map for the {Variant(backport)} {locationId}";
+
+            location = await VariantLocation(location, backport);
+            if (!StillShowing(controller, locationId))
+                return null;
+
+            if (location == null)
+                return $"The server sent no data for {locationId}";
         }
+
+        if (mapDef == null)
+            return $"No DynamicMaps map for {locationId}";
 
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;
         var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : Profile(screen).Info.Side;
-        if (SpawnPickerWindow.Open(mapDef, location, side, playerSide, screen, screen._acceptButton, advance))
-            return true;
-
-        UseDefaultSpawns("The spawn picker failed to open");
-        return false;
+        return SpawnPickerWindow.Open(mapDef, location, side, playerSide, screen, screen._acceptButton, advance)
+            ? null
+            : "The spawn picker failed to open";
     }
 
-    private static void Advance(Controller controller, bool ready, bool skipPatches)
+    private static async Task<LocationSettings.Location> VariantLocation(LocationSettings.Location selected, bool backport)
     {
-        if (skipPatches)
-        {
-            (ready ? controller._onShowReadyScreen : controller._onShowNextScreen)?.Invoke();
-            return;
-        }
+        var key = (selected.Id, backport);
+        if (VariantLocations.TryGetValue(key, out var location))
+            return location;
 
-        _passThrough = true;
-        if (ready)
-            controller.ShowReadyScreen();
-        else
-            controller.ShowNextScreen();
+        location = await WithTimeout(ServerLocations.Fetch(selected._Id));
+        if (location != null)
+            VariantLocations[key] = location;
+
+        return location;
     }
 
     private static bool StillShowing(Controller controller, string locationId) =>
@@ -223,21 +187,8 @@ public static class LocationScreenAdvance
         }
     }
 
-    private static async Task<T> WithTimeout<T>(Task<T> task)
-    {
-        using var timeout = new CancellationTokenSource();
-        if (await Task.WhenAny(task, Task.Delay(ServerTimeout, timeout.Token)) != task)
-            throw new TimeoutException();
-
-        timeout.Cancel();
-        return await task;
-    }
+    private static async Task<T> WithTimeout<T>(Task<T> task) =>
+        await Task.WhenAny(task, Task.Delay(ServerTimeout)) == task ? await task : throw new TimeoutException();
 
     private static string Variant(bool backport) => backport ? "backport" : "original";
-
-    private static void UseDefaultSpawns(string reason)
-    {
-        SpawnChoiceStore.Clear();
-        Plugin.LogSource.LogInfo($"{reason}, using default spawns");
-    }
 }

@@ -52,7 +52,6 @@ public class SpawnPickerWindow : InputNode
     private float _pulseStart;
     private LocationSettings.Location _location;
     private ESideType _side;
-    private EPlayerSide _playerSide;
     private DefaultUIButton _ownerButton;
     private Action _onNext;
     private InputNode _screen;
@@ -89,7 +88,6 @@ public class SpawnPickerWindow : InputNode
         _instance = root.AddComponent<SpawnPickerWindow>();
         _instance._location = location;
         _instance._side = side;
-        _instance._playerSide = playerSide;
         _instance._ownerButton = ownerButton;
         _instance._onNext = onNext;
 
@@ -99,7 +97,7 @@ public class SpawnPickerWindow : InputNode
 
         try
         {
-            _instance.Build(mapDef);
+            _instance.Build(mapDef, playerSide);
             return true;
         }
         catch (Exception ex)
@@ -116,7 +114,7 @@ public class SpawnPickerWindow : InputNode
             Destroy(_instance.gameObject);
     }
 
-    private void Build(MapDef mapDef)
+    private void Build(MapDef mapDef, EPlayerSide playerSide)
     {
         var background = UIUtils.CreateUIGameObject(gameObject, "Background");
         var backgroundRect = background.GetRectTransform();
@@ -125,14 +123,14 @@ public class SpawnPickerWindow : InputNode
         backgroundRect.offsetMin = backgroundRect.offsetMax = Vector2.zero;
         background.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.9f);
 
-        BuildMap(background, mapDef);
+        BuildMap(background, mapDef, playerSide);
         BuildPanel(background);
 
-        var chosen = SpawnChoiceStore.Get(_location.Id, _side);
+        var chosen = SpawnChoiceStore.Get(_side);
         Select(chosen != null ? _markers.FirstOrDefault(marker => marker.Spot.PointIds.SetEquals(chosen.PointIds)) : null);
     }
 
-    private void BuildMap(GameObject parent, MapDef mapDef)
+    private void BuildMap(GameObject parent, MapDef mapDef, EPlayerSide playerSide)
     {
         var mapArea = UIUtils.CreateUIGameObject(parent, "MapArea");
         var mapAreaRect = mapArea.GetRectTransform();
@@ -147,17 +145,23 @@ public class SpawnPickerWindow : InputNode
                 Select(null);
         });
 
-        // LoadMap zooms out to fit the whole map in the area
+        // LoadMap zooms out to fit the whole map in the area. Without the map's own markers (extracts, transits...): we show only ours
         var mapView = MapView.Create(mapArea, "MapView");
-        mapView.LoadMap(mapDef, mapAreaRect);
+        var staticMarkers = mapDef.StaticMarkers;
+        mapDef.StaticMarkers = [];
+        try
+        {
+            mapView.LoadMap(mapDef, mapAreaRect);
+        }
+        finally
+        {
+            mapDef.StaticMarkers = staticMarkers;
+        }
+
         var layers = mapView.MapLayerContainer.GetComponentsInChildren<MapLayer>(true);
         if (layers.Length > 0)
             mapView.SelectTopLevel(layers.Max(layer => layer.Level));
         ShowAllLevels(mapView, layers);
-
-        // LoadMap adds the map's own markers (extracts, transits...): keep only ours
-        foreach (var mapMarker in mapView.MapMarkerContainer.GetComponentsInChildren<MapMarker>(true))
-            mapView.RemoveMapMarker(mapMarker);
 
         // Dims the map and its labels, under our markers; the mask clips it to the map area
         var dim = UIUtils.CreateUIGameObject(mapView.gameObject, "Dim");
@@ -176,7 +180,7 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.AddComponent<Canvas>();
         _pulse.gameObject.SetActive(false);
 
-        foreach (var spot in SpawnSpots.For(_location, _playerSide, mapDef))
+        foreach (var spot in SpawnSpots.For(_location, playerSide, mapDef))
         {
             var marker = mapView.AddMapMarker(new MapMarkerDef
             {
@@ -254,17 +258,6 @@ public class SpawnPickerWindow : InputNode
 
         _selected = spawnMarker;
         _pulse.gameObject.SetActive(_selected != null);
-        if (_selected != null)
-        {
-            SetMarkerLook(_selected, selected: true);
-            _selected.Marker.transform.SetAsLastSibling();
-            _pulse.transform.SetParent(_selected.Marker.transform, false);
-            _pulse.transform.SetAsFirstSibling();
-            _pulse.rectTransform.anchoredPosition = Vector2.zero;
-            _pulseStart = Time.unscaledTime;
-            UpdatePulse();
-        }
-
         if (_selected == null)
         {
             _infoText.text = Plugin.FikaLoaded
@@ -272,6 +265,14 @@ public class SpawnPickerWindow : InputNode
                 : "<b>Random spawn</b>\n\nYou spawn at a random spawn point, as usual.";
             return;
         }
+
+        SetMarkerLook(_selected, selected: true);
+        _selected.Marker.transform.SetAsLastSibling();
+        _pulse.transform.SetParent(_selected.Marker.transform, false);
+        _pulse.transform.SetAsFirstSibling();
+        _pulse.rectTransform.anchoredPosition = Vector2.zero;
+        _pulseStart = Time.unscaledTime;
+        UpdatePulse();
 
         var where = _selected.Spot.Where;
         var lines = new List<string> { $"<b>{_selected.Spot.Title}</b>" };
@@ -393,7 +394,7 @@ public class SpawnPickerWindow : InputNode
 
     private void Next()
     {
-        SpawnChoiceStore.Set(_location.Id, _side, _selected?.Spot);
+        SpawnChoiceStore.Set(_side, _selected?.Spot);
         Close();
         _onNext?.Invoke();
     }
