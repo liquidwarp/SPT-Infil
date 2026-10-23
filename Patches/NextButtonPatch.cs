@@ -19,13 +19,13 @@ public class NextButtonPatch : ModulePatch
         AccessTools.FieldRefAccess<MatchMakerSelectionLocationScreen, Profile>("_profile");
 
     protected override MethodBase GetTargetMethod() =>
-        AccessTools.Method(typeof(MatchMakerSelectionLocationScreen), nameof(MatchMakerSelectionLocationScreen.Awake));
+        AccessTools.Method(typeof(MatchMakerSelectionLocationScreen), nameof(MatchMakerSelectionLocationScreen.CG_Awake));
 
-    [PatchPostfix]
-    public static void Postfix(MatchMakerSelectionLocationScreen __instance)
+    [PatchPrefix]
+    public static bool Prefix(MatchMakerSelectionLocationScreen __instance)
     {
-        __instance._acceptButton.OnClick.RemoveAllListeners();
-        __instance._acceptButton.OnClick.AddListener(() => OnNext(__instance));
+        OnNext(__instance);
+        return false;
     }
 
     private static void OnNext(MatchMakerSelectionLocationScreen screen)

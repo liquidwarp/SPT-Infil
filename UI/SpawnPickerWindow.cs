@@ -64,8 +64,7 @@ public class SpawnPickerWindow : InputNode
 
     public static void Open(LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
     {
-        if (_instance != null)
-            Destroy(_instance.gameObject);
+        CloseOpen();
 
         var mapDef = MapDefCatalog.Find(location.Id);
         if (mapDef == null)
@@ -101,6 +100,12 @@ public class SpawnPickerWindow : InputNode
             Plugin.LogSource.LogError($"Could not open the spawn picker: {ex}");
             Destroy(root);
         }
+    }
+
+    public static void CloseOpen()
+    {
+        if (_instance != null)
+            Destroy(_instance.gameObject);
     }
 
     private void Build(MapDef mapDef)

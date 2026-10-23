@@ -14,7 +14,7 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-        <DebugType>None</DebugType>
+        <DebugType Condition="'$(HotReload)' != 'True'">None</DebugType>
         <GenerateDependencyFile>false</GenerateDependencyFile>
     </PropertyGroup>
 </Project>

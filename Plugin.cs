@@ -3,6 +3,8 @@ using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using Liquidwarp.SpawnSelector.Patches;
+using Liquidwarp.SpawnSelector.UI;
+using SPT.Reflection.Patching;
 
 namespace Liquidwarp.SpawnSelector;
 
@@ -17,6 +19,8 @@ public class Plugin : BaseUnityPlugin
     public static ManualLogSource LogSource;
     public static bool FikaLoaded { get; private set; }
 
+    private PatchManager _patchManager;
+
     private void Awake()
     {
         LogSource = Logger;
@@ -24,14 +28,23 @@ public class Plugin : BaseUnityPlugin
 
         MapDefCatalog.Preload();
 
-        new SelectSpawnPointPatch().Enable();
-        new NextButtonPatch().Enable();
-        new RaidStartedPatch().Enable();
+        _patchManager = new PatchManager(this);
+        _patchManager.AddPatch(new SelectSpawnPointPatch());
+        _patchManager.AddPatch(new NextButtonPatch());
+        _patchManager.AddPatch(new RaidStartedPatch());
 
         if (FikaLoaded)
-            EnableFikaPatches();
+            AddFikaPatches();
+
+        _patchManager.EnablePatches();
+    }
+
+    private void OnDestroy()
+    {
+        SpawnPickerWindow.CloseOpen();
+        _patchManager?.DisablePatches();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void EnableFikaPatches() => new ReceiveSpawnPointPatch().Enable();
+    private void AddFikaPatches() => _patchManager.AddPatch(new ReceiveSpawnPointPatch());
 }

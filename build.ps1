@@ -6,6 +6,8 @@ param(
 
     [switch]$InstallMod,
 
+    [switch]$HotReload,
+
     [switch]$PackageRelease
 )
 
@@ -15,11 +17,16 @@ if (-not (Test-Path "$SPTPath\EscapeFromTarkov_Data\Managed\Assembly-CSharp.dll"
     throw "SPT not found at '$SPTPath'"
 }
 
+if ($HotReload -and -not $InstallMod) {
+    throw "-HotReload requires -InstallMod"
+}
+
 $buildArgs = @(
     "$PSScriptRoot\SpawnSelector.slnx"
     "-c", $Configuration
     "-p:SPTPath=$SPTPath"
     "-p:InstallMod=$($InstallMod.IsPresent)"
+    "-p:HotReload=$($HotReload.IsPresent)"
     "-p:PackageRelease=$($PackageRelease.IsPresent)"
     "-tlp:verbosity=detailed"
 )
