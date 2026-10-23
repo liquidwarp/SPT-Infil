@@ -46,7 +46,7 @@ public static class LocationScreenAdvance
 
     private static readonly TimeSpan ServerTimeout = TimeSpan.FromSeconds(10);
 
-    private static readonly Dictionary<(string, bool), LocationSettings.Location> VariantLocations = new();
+    private static readonly Dictionary<string, LocationSettings.Location> OriginalLocations = new();
 
     private static bool _fetching;
 
@@ -131,14 +131,14 @@ public static class LocationScreenAdvance
             }
 
             if (backport.Value)
-                mapDef = DynamicMapsExtendedMaps.FindBackport(locationId);
+                return $"No DynamicMaps map for the backport {locationId}";
             if (mapDef == null)
-                return $"No DynamicMaps map for the {Variant(backport.Value)} {locationId}";
+                return $"No DynamicMaps map for {locationId}";
 
             var cover = chosen != null ? SpawnPickerWindow.OpenCover() : null;
             try
             {
-                location = await VariantLocation(location, backport.Value);
+                location = await OriginalLocation(location);
             }
             finally
             {
@@ -164,15 +164,14 @@ public static class LocationScreenAdvance
             : "The spawn picker failed to open";
     }
 
-    private static async Task<LocationSettings.Location> VariantLocation(LocationSettings.Location selected, bool backport)
+    private static async Task<LocationSettings.Location> OriginalLocation(LocationSettings.Location selected)
     {
-        var key = (selected.Id, backport);
-        if (VariantLocations.TryGetValue(key, out var location))
+        if (OriginalLocations.TryGetValue(selected.Id, out var location))
             return location;
 
         location = await WithTimeout(ServerLocations.Fetch(selected._Id));
         if (location != null)
-            VariantLocations[key] = location;
+            OriginalLocations[selected.Id] = location;
 
         return location;
     }
@@ -204,6 +203,4 @@ public static class LocationScreenAdvance
 
     private static async Task<T> WithTimeout<T>(Task<T> task) =>
         await Task.WhenAny(task, Task.Delay(ServerTimeout)) == task ? await task : throw new TimeoutException();
-
-    private static string Variant(bool backport) => backport ? "backport" : "original";
 }
