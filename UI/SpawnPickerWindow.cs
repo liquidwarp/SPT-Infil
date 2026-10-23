@@ -19,21 +19,37 @@ namespace Liquidwarp.SpawnSelector.UI;
 public class SpawnPickerWindow : InputNode
 {
     private const string MarkerCategory = "SpawnSelector";
-    private const string MarkerImage = "Markers/dot.png";
-    private const string SelectedMarkerImage = "Markers/star.png";
 
     private static readonly Vector2 MapSize = new(1320f, 940f);
     private static readonly Vector2 PanelSize = new(460f, 940f);
-    private static readonly Vector2 MarkerSize = new(180f, 180f);
-    private static readonly Vector2 SelectedMarkerSize = new(53f, 53f);
-    private const float DotRadius = 5f / 72f;
+    private static readonly Vector2 MarkerSize = new(64f, 64f);
+    private static readonly Vector2 SelectedMarkerSize = new(80f, 80f);
+    private static readonly Vector2 PulseSize = new(128f, 128f);
+    private const float PulsePeriod = 1.4f;
+    private const int DotTextureSize = 128;
+    private const float DotFillRadius = 24f;
+    private const float DotEdgeRadius = 28f;
+    private const float DotRadius = DotEdgeRadius / DotTextureSize;
     private const float MapDim = 0.5f;
+    private const float OtherLevelAlpha = 0.4f;
 
     private static readonly Color MarkerColor = new(0.30f, 0.75f, 1.00f);
 
+    private static readonly Dictionary<LayerStatus, float> AlwaysShown = new()
+    {
+        [LayerStatus.Hidden] = 1f,
+        [LayerStatus.Underneath] = 1f,
+        [LayerStatus.OnTop] = 1f,
+        [LayerStatus.FullReveal] = 1f,
+    };
+
     private static SpawnPickerWindow _instance;
+    private static Sprite _dotSprite;
+    private static Sprite _ringSprite;
 
     private readonly List<SpawnMarker> _markers = [];
+    private Image _pulse;
+    private float _pulseStart;
     private LocationSettings.Location _location;
     private ESideType _side;
     private EPlayerSide _playerSide;
@@ -47,19 +63,13 @@ public class SpawnPickerWindow : InputNode
     {
         public SpawnSpot Spot;
         public MapMarker Marker;
+        public string Levels;
     }
 
     static SpawnPickerWindow()
     {
-        var alwaysShown = new Dictionary<LayerStatus, float>
-        {
-            [LayerStatus.Hidden] = 1f,
-            [LayerStatus.Underneath] = 1f,
-            [LayerStatus.OnTop] = 1f,
-            [LayerStatus.FullReveal] = 1f,
-        };
-        MapMarker.CategoryImageAlphaLayerStatus[MarkerCategory] = alwaysShown;
-        MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = alwaysShown;
+        MapMarker.CategoryImageAlphaLayerStatus[MarkerCategory] = AlwaysShown;
+        MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = AlwaysShown;
     }
 
     public static void Open(LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
@@ -142,6 +152,8 @@ public class SpawnPickerWindow : InputNode
         // LoadMap zooms out to fit the whole map in the area
         var mapView = MapView.Create(mapArea, "MapView");
         mapView.LoadMap(mapDef, mapAreaRect);
+        var layers = mapView.MapLayerContainer.GetComponentsInChildren<MapLayer>(true);
+        ShowAllLevels(mapView, layers);
 
         // LoadMap adds the map's own markers (extracts, transits...): keep only ours
         foreach (var mapMarker in mapView.MapMarkerContainer.GetComponentsInChildren<MapMarker>(true))
@@ -155,24 +167,34 @@ public class SpawnPickerWindow : InputNode
         dimImage.color = new Color(0f, 0f, 0f, MapDim);
         dimImage.raycastTarget = false;
 
+        _pulse = UIUtils.CreateUIGameObject(mapView.MapMarkerContainer, "Pulse").AddComponent<Image>();
+        _pulse.sprite = GetRingSprite();
+        _pulse.raycastTarget = false;
+        _pulse.rectTransform.sizeDelta = PulseSize;
+        _pulse.color = MarkerColor;
+        // Its own canvas, so animating it doesn't rebuild the whole picker every frame
+        _pulse.gameObject.AddComponent<Canvas>();
+        _pulse.gameObject.SetActive(false);
+
         foreach (var spot in SpawnSpots.For(_location, _playerSide))
         {
             var marker = mapView.AddMapMarker(new MapMarkerDef
             {
-                Text = spot.Label,
+                Text = spot.Label.TrimStart('#'),
                 Category = MarkerCategory,
-                ImagePath = MarkerImage,
+                Sprite = GetDotSprite(),
                 Position = MathUtils.ConvertToMapPosition(spot.Position),
                 Color = MarkerColor,
             });
+            marker.Size = MarkerSize;
+            marker.Label.rectTransform.anchoredPosition = new Vector2(0f, MarkerSize.y / 2f - SelectedMarkerSize.y * DotRadius);
 
-            var spawnMarker = new SpawnMarker { Spot = spot, Marker = marker };
+            var spawnMarker = new SpawnMarker { Spot = spot, Marker = marker, Levels = DescribeLevels(layers, spot) };
             marker.gameObject.AddComponent<ClickTrigger>().Init(eventData =>
             {
                 if (eventData.button == PointerEventData.InputButton.Left)
                     Select(spawnMarker);
             });
-            SetMarkerLook(spawnMarker, selected: false);
             _markers.Add(spawnMarker);
         }
     }
@@ -231,6 +253,17 @@ public class SpawnPickerWindow : InputNode
             SetMarkerLook(_selected, selected: false);
 
         _selected = spawnMarker;
+        _pulse.gameObject.SetActive(_selected != null);
+        if (_selected != null)
+        {
+            SetMarkerLook(_selected, selected: true);
+            _selected.Marker.transform.SetAsLastSibling();
+            _pulse.transform.SetParent(_selected.Marker.transform, false);
+            _pulse.transform.SetAsFirstSibling();
+            _pulse.rectTransform.anchoredPosition = Vector2.zero;
+            _pulseStart = Time.unscaledTime;
+            UpdatePulse();
+        }
 
         if (_selected == null)
         {
@@ -240,20 +273,122 @@ public class SpawnPickerWindow : InputNode
             return;
         }
 
-        SetMarkerLook(_selected, selected: true);
-        _infoText.text = $"<b>Spawn {_selected.Spot.Label}</b>\n\nSpawn points here: {_selected.Spot.PointIds.Count}";
+        var where = _selected.Spot.Where;
+        var lines = new List<string> { $"<b>{_selected.Spot.Title}</b>" };
+        if (where != null)
+            lines.Add(char.ToUpper(where[0]) + where.Substring(1));
+
+        lines.Add("");
+        lines.Add(_selected.Levels != null
+            ? $"Possible spawn points:\n<indent=20>{_selected.Levels}</indent>"
+            : $"Possible spawn points: {_selected.Spot.PointIds.Count}");
+
+        _infoText.text = string.Join("\n", lines);
     }
 
-    private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected)
+    private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected) =>
+        spawnMarker.Marker.Image.rectTransform.sizeDelta = selected ? SelectedMarkerSize : MarkerSize;
+
+    private static void ShowAllLevels(MapView mapView, MapLayer[] layers)
     {
-        var marker = spawnMarker.Marker;
-        marker.Image.sprite = TextureUtils.GetOrLoadCachedSprite(selected ? SelectedMarkerImage : MarkerImage);
-        marker.Size = selected ? SelectedMarkerSize : MarkerSize;
+        // The default level is opaque, so it goes at the bottom with the other levels see-through above it
+        foreach (var layer in layers.OrderBy(layer => layer.IsOnDefaultLevel ? 0 : 1).ThenBy(layer => layer.Level))
+        {
+            layer.gameObject.SetActive(true);
+            layer.transform.SetAsLastSibling();
+            layer.GetComponent<Graphic>().color = new Color(1f, 1f, 1f, layer.IsOnDefaultLevel ? 1f : OtherLevelAlpha);
+        }
 
-        marker.Label.rectTransform.anchoredPosition = new Vector2(0f, selected ? 0f : MarkerSize.y * (0.5f - DotRadius));
+        foreach (var label in mapView.MapLabelsContainer.GetComponentsInChildren<MapLabel>(true))
+        {
+            label.LabelAlphaLayerStatus = AlwaysShown;
+            label.HandleNewLayerStatus(LayerStatus.OnTop);
+        }
+    }
 
-        if (selected)
-            marker.transform.SetAsLastSibling();
+    // Same rule as DynamicMaps: the matching layer with the smallest bound, else the default level
+    private static string DescribeLevels(MapLayer[] layers, SpawnSpot spot)
+    {
+        if (layers.Length == 0)
+            return null;
+
+        var defaultLayer = layers.FirstOrDefault(layer => layer.IsOnDefaultLevel);
+        var levels = spot.PointPositions
+            .Select(position => FindLayer(layers, MathUtils.ConvertToMapPosition(position)) ?? defaultLayer)
+            .GroupBy(layer => layer)
+            .OrderBy(group => group.Key != null ? group.Key.Level : int.MaxValue)
+            .Select(group => $"{(group.Key != null ? group.Key.name : "Other")}: {group.Count()}");
+
+        return string.Join("\n", levels);
+    }
+
+    private static MapLayer FindLayer(MapLayer[] layers, Vector3 position)
+    {
+        MapLayer best = null;
+        var bestVolume = float.MaxValue;
+        foreach (var layer in layers)
+        {
+            if (!layer.IsCoordinateInLayer(position))
+                continue;
+
+            var volume = layer.GetMatchingBoundVolume(position);
+            if (volume < bestVolume)
+                (best, bestVolume) = (layer, volume);
+        }
+
+        return best;
+    }
+
+    private static Sprite GetDotSprite()
+    {
+        if (_dotSprite == null)
+        {
+            _dotSprite = CreateRoundSprite(DotTextureSize, distance =>
+            {
+                var fill = Coverage(DotFillRadius - distance);
+                var alpha = Mathf.Lerp(0.6f, 1f, fill) * Coverage(DotEdgeRadius - distance);
+                return new Color(fill, fill, fill, alpha);
+            });
+        }
+
+        return _dotSprite;
+    }
+
+    private static Sprite GetRingSprite()
+    {
+        if (_ringSprite == null)
+        {
+            const int size = 256;
+            _ringSprite = CreateRoundSprite(size, distance =>
+                new Color(1f, 1f, 1f, Coverage(6f - Mathf.Abs(distance - (size / 2f - 10f)))));
+        }
+
+        return _ringSprite;
+    }
+
+    private static float Coverage(float insideDistance) => Mathf.Clamp01(insideDistance + 0.5f);
+
+    private static Sprite CreateRoundSprite(int size, Func<float, Color> shade)
+    {
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, true)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Trilinear,
+            hideFlags = HideFlags.DontUnloadUnusedAsset,
+        };
+
+        var pixels = new Color[size * size];
+        var center = (size - 1) / 2f;
+        for (var y = 0; y < size; y++)
+        for (var x = 0; x < size; x++)
+            pixels[y * size + x] = shade(new Vector2(x - center, y - center).magnitude);
+
+        texture.SetPixels(pixels);
+        texture.Apply(true, true);
+
+        var sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f));
+        sprite.hideFlags = HideFlags.DontUnloadUnusedAsset;
+        return sprite;
     }
 
     private void Next()
@@ -268,7 +403,23 @@ public class SpawnPickerWindow : InputNode
     private void Update()
     {
         if (_ownerButton == null || !_ownerButton.isActiveAndEnabled)
+        {
             Close();
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(1))
+            Select(null);
+
+        if (_selected != null)
+            UpdatePulse();
+    }
+
+    private void UpdatePulse()
+    {
+        var t = (Time.unscaledTime - _pulseStart) % PulsePeriod / PulsePeriod;
+        _pulse.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.25f, 1f, 1f - (1f - t) * (1f - t));
+        _pulse.canvasRenderer.SetAlpha(0.9f * (1f - t));
     }
 
     private void OnDestroy()
@@ -306,7 +457,7 @@ public class SpawnPickerWindow : InputNode
         rect.offsetMax = new Vector2(-25f, -top);
     }
 
-    private static TextMeshProUGUI CreateText(GameObject parent, string name, TMP_FontAsset font, float size, FontStyles style)
+    internal static TextMeshProUGUI CreateText(GameObject parent, string name, TMP_FontAsset font, float size, FontStyles style)
     {
         var text = UIUtils.CreateUIGameObject(parent, name).AddComponent<TextMeshProUGUI>();
         if (font != null)

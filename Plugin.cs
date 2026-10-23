@@ -31,6 +31,7 @@ public class Plugin : BaseUnityPlugin
         _patchManager = new PatchManager(this);
         _patchManager.AddPatch(new SelectSpawnPointPatch());
         _patchManager.AddPatch(new NextButtonPatch());
+        _patchManager.AddPatch(new ConfirmationScreenPatch());
         _patchManager.AddPatch(new RaidStartedPatch());
 
         if (FikaLoaded)
@@ -42,6 +43,7 @@ public class Plugin : BaseUnityPlugin
     private void OnDestroy()
     {
         SpawnPickerWindow.CloseOpen();
+        ConfirmationScreenPatch.RemoveText();
         _patchManager?.DisablePatches();
     }
 

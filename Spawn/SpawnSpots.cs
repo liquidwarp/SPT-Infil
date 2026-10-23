@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DynamicMaps.Utils;
 using EFT;
 using EFT.Game.Spawning;
 using JsonType;
@@ -11,8 +12,11 @@ namespace Liquidwarp.SpawnSelector.Spawn;
 public class SpawnSpot
 {
     public string Label;
+    public string Title => $"Spawn area {Label}";
     public Vector3 Position;
+    public string Where;
     public HashSet<string> PointIds;
+    public List<Vector3> PointPositions;
 }
 
 public static class SpawnSpots
@@ -21,37 +25,55 @@ public static class SpawnSpots
 
     private static readonly Dictionary<string, float> MaxSpreadByLocation = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["factory4_day"] = 75f,
-        ["factory4_night"] = 75f,
-        ["laboratory"] = 75f,
-        ["labyrinth"] = 75f,
-        ["Sandbox"] = 150f,
-        ["Sandbox_high"] = 150f,
+        ["factory4_day"] = 50f,
+        ["factory4_night"] = 50f,
+        ["laboratory"] = 30f,
+        ["labyrinth"] = 25f,
+        ["RezervBase"] = 125f,
+        ["Lighthouse"] = 125f,
+        ["Sandbox"] = 100f,
+        ["Sandbox_high"] = 100f,
     };
 
-    private static readonly Dictionary<(string, EPlayerSide), List<SpawnSpot>> Cache = new();
+    private static readonly Dictionary<(string, EPlayerSide), (SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
 
     public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side)
     {
-        if (!Cache.TryGetValue((location.Id, side), out var spots))
-            Cache[(location.Id, side)] = spots = Build(location, side);
+        var source = location.SpawnPointParams ?? [];
+        if (Cache.TryGetValue((location.Id, side), out var cached) && SameSpawnPoints(cached.Source, source))
+            return cached.Spots;
+
+        var spots = Build(location, source, side);
+        Cache[(location.Id, side)] = (source, spots);
         return spots;
     }
 
-    private static List<SpawnSpot> Build(LocationSettings.Location location, EPlayerSide side)
+    private static bool SameSpawnPoints(SpawnPointParams[] a, SpawnPointParams[] b) =>
+        a == b || a.Select(point => point.Id).SequenceEqual(b.Select(point => point.Id));
+
+    private static List<SpawnSpot> Build(LocationSettings.Location location, SpawnPointParams[] source, EPlayerSide side)
     {
-        var points = (location.SpawnPointParams ?? [])
+        var points = source
             .Where(point => point.Categories.ContainPlayerCategory() && point.Sides.Contain(side) && point.Position != null)
             .ToList();
+        var positions = points.Select(point => (Vector3)point.Position).ToList();
 
         var maxSpread = MaxSpreadByLocation.TryGetValue(location.Id, out var spread) ? spread : DefaultMaxSpread;
+        var mapDef = MapDefCatalog.Find(location.Id);
 
-        return Cluster(points.Select(point => (Vector3)point.Position).ToList(), maxSpread)
-            .Select((members, index) => new SpawnSpot
+        return Cluster(positions, maxSpread)
+            .Select((members, index) =>
             {
-                Label = $"#{index + 1}",
-                Position = members.Aggregate(Vector3.zero, (sum, i) => sum + (Vector3)points[i].Position) / members.Count,
-                PointIds = new HashSet<string>(members.Select(i => points[i].Id)),
+                var memberPositions = members.Select(i => positions[i]).ToList();
+                var position = memberPositions.Aggregate(Vector3.zero, (sum, p) => sum + p) / memberPositions.Count;
+                return new SpawnSpot
+                {
+                    Label = $"#{index + 1}",
+                    Position = position,
+                    Where = mapDef != null ? MapDefCatalog.DescribeWhere(mapDef, MathUtils.ConvertToMapPosition(position)) : null,
+                    PointIds = new HashSet<string>(members.Select(i => points[i].Id)),
+                    PointPositions = memberPositions,
+                };
             })
             .ToList();
     }
