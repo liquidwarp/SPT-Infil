@@ -20,7 +20,7 @@ namespace Liquidwarp.Infil.Patches;
 public class NextScreenPatch : ModulePatch
 {
     protected override MethodBase GetTargetMethod() =>
-        AccessTools.Method(typeof(Controller), nameof(Controller.ShowNextScreen));
+        LocationScreenAdvance.Declared(nameof(Controller.ShowNextScreen));
 
     [PatchPrefix]
     [HarmonyPriority(Priority.Low)]
@@ -31,7 +31,7 @@ public class NextScreenPatch : ModulePatch
 public class ReadyScreenPatch : ModulePatch
 {
     protected override MethodBase GetTargetMethod() =>
-        AccessTools.Method(typeof(Controller), nameof(Controller.ShowReadyScreen));
+        LocationScreenAdvance.Declared(nameof(Controller.ShowReadyScreen));
 
     [PatchPrefix]
     [HarmonyPriority(Priority.Low)]
@@ -49,6 +49,10 @@ public static class LocationScreenAdvance
     private static readonly Dictionary<(string, bool), LocationSettings.Location> VariantLocations = new();
 
     private static bool _fetching;
+
+    // Harmony keys patches by MethodInfo: reached through Controller, this method would get a detour apart from MapVariants' and override it
+    public static MethodInfo Declared(string name) =>
+        AccessTools.DeclaredMethod(AccessTools.Method(typeof(Controller), name).DeclaringType, name);
 
     // The patched method is shared by every screen controller of the sequence: __instance may be another one
     public static bool Intercept(object instance, bool runOriginal, bool ready)
