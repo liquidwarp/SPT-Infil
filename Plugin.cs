@@ -26,8 +26,6 @@ public class Plugin : BaseUnityPlugin
         LogSource = Logger;
         FikaLoaded = Chainloader.PluginInfos.ContainsKey(FikaGuid);
 
-        MapDefCatalog.Preload();
-
         _patchManager = new PatchManager(this);
         _patchManager.AddPatch(new SelectSpawnPointPatch());
         _patchManager.AddPatch(new NextButtonPatch());
