@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using EFT;
-using EFT.UI;
 using EFT.UI.Matchmaker;
 using HarmonyLib;
 using JsonType;
@@ -45,20 +43,13 @@ public static class LocationScreenAdvance
     private static readonly AccessTools.FieldRef<MatchMakerSelectionLocationScreen, Profile> Profile =
         AccessTools.FieldRefAccess<MatchMakerSelectionLocationScreen, Profile>("_profile");
 
-    private static readonly TimeSpan ServerTimeout = TimeSpan.FromSeconds(10);
-
     private static readonly Dictionary<string, LocationSettings.Location> OriginalLocations = new();
-
-    private static bool _fetching;
 
     // The patched method is shared by every screen controller of the sequence: __instance may be another one
     public static bool Intercept(object instance, bool runOriginal, bool ready)
     {
         if (instance is not Controller controller || !runOriginal)
             return true;
-
-        if (_fetching)
-            return false;
 
         var location = controller.Screen.SelectedLocation;
         if (location == null)
@@ -73,20 +64,13 @@ public static class LocationScreenAdvance
         // The original only invokes this, and calling it directly keeps MapVariants from prompting again
         Action advance = () => (ready ? controller._onShowReadyScreen : controller._onShowNextScreen)?.Invoke();
 
-        _fetching = true;
-        (DefaultUIButton, bool)[] buttons = [];
         string fallback;
         try
         {
-            buttons = LockButtons(controller.Screen);
             var opening = TryOpenPicker(controller, location, advance);
             if (!opening.IsCompleted)
-                SpawnPickerWindow.OpenCover(controller.Screen._acceptButton);
+                SpawnPickerWindow.OpenCover(controller.Screen, controller.Screen._acceptButton);
             fallback = await opening;
-        }
-        catch (TimeoutException)
-        {
-            fallback = $"The server took over {ServerTimeout.TotalSeconds:0} seconds to answer";
         }
         catch (Exception ex)
         {
@@ -95,8 +79,6 @@ public static class LocationScreenAdvance
         }
         finally
         {
-            _fetching = false;
-            UnlockButtons(buttons);
             SpawnPickerWindow.CloseCover();
         }
 
@@ -108,7 +90,6 @@ public static class LocationScreenAdvance
         advance();
     }
 
-    /// Null when the picker opened, or when the player left the map while the server answered
     private static async Task<string> TryOpenPicker(Controller controller, LocationSettings.Location location, Action advance)
     {
         var locationId = location.Id;
@@ -121,19 +102,13 @@ public static class LocationScreenAdvance
         if (MapVariantsMaps.Manages(locationId))
         {
             // Straight from MapVariants' window, whose choice the server just acknowledged
-            var backport = MapVariantsMaps.ChoseBackport(locationId) ?? await WithTimeout(MapVariantsMaps.ServesBackport(locationId));
-            if (!StillShowing(controller, locationId))
-                return null;
-
+            var backport = MapVariantsMaps.ChoseBackport(locationId) ?? await MapVariantsMaps.ServesBackport(locationId);
             if (backport == null)
                 return $"The server did not say which {locationId} it serves";
             if (backport.Value)
                 return $"No DynamicMaps map for the backport {locationId}";
 
             location = await OriginalLocation(location);
-            if (!StillShowing(controller, locationId))
-                return null;
-
             if (location == null)
                 return $"The server sent no data for {locationId}";
         }
@@ -160,38 +135,10 @@ public static class LocationScreenAdvance
         if (OriginalLocations.TryGetValue(selected.Id, out var location))
             return location;
 
-        location = await WithTimeout(ServerLocations.Fetch(selected._Id));
+        location = await ServerLocations.Fetch(selected._Id);
         if (location != null)
             OriginalLocations[selected.Id] = location;
 
         return location;
     }
-
-    private static bool StillShowing(Controller controller, string locationId) =>
-        controller.Active && string.Equals(controller.Screen.SelectedLocation?.Id, locationId, StringComparison.OrdinalIgnoreCase);
-
-    private static (DefaultUIButton Button, bool Interactable)[] LockButtons(MatchMakerSelectionLocationScreen screen)
-    {
-        var buttons = new[] { screen._acceptButton, screen._readyButton }
-            .Where(button => button != null)
-            .Select(button => (button, button.Interactable))
-            .ToArray();
-
-        foreach (var (button, _) in buttons)
-            button.Interactable = false;
-
-        return buttons;
-    }
-
-    private static void UnlockButtons((DefaultUIButton Button, bool Interactable)[] buttons)
-    {
-        foreach (var (button, interactable) in buttons)
-        {
-            if (button != null)
-                button.Interactable = interactable;
-        }
-    }
-
-    private static async Task<T> WithTimeout<T>(Task<T> task) =>
-        await Task.WhenAny(task, Task.Delay(ServerTimeout)) == task ? await task : throw new TimeoutException();
 }

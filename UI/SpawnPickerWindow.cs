@@ -106,13 +106,16 @@ public class SpawnPickerWindow : InputNode
             Destroy(_instance.gameObject);
     }
 
-    /// The picker's backdrop alone, to hide the location screen while the server answers
-    public static void OpenCover(DefaultUIButton ownerButton)
+    public static void OpenCover(InputNode screen, DefaultUIButton ownerButton)
     {
         CloseCover();
         _cover = CreateCanvas("InfilCover");
+        var cover = _cover.AddComponent<Cover>();
+        cover.Screen = screen;
+        screen.Add(cover);
+
         var text = CreateText(CreateBackground(_cover), "Loading", HeaderFont(ownerButton), 24f, FontStyles.Normal);
-        text.text = "LOADING SPAWN POINTS...\n<size=70%><color=#B3B3B3>Esc to go back</color></size>";
+        text.text = "LOADING SPAWN POINTS...";
         text.rectTransform.sizeDelta = new Vector2(800f, 100f);
     }
 
@@ -121,6 +124,25 @@ public class SpawnPickerWindow : InputNode
         if (_cover != null)
             Destroy(_cover);
         _cover = null;
+    }
+
+    private class Cover : InputNode
+    {
+        public InputNode Screen;
+
+        public override ETranslateResult TranslateCommand(ECommand command) => ETranslateResult.BlockAll;
+
+        public override void TranslateAxes(ref float[] axes)
+        {
+        }
+
+        public override ECursorResult ShouldLockCursor() => ECursorResult.ShowCursor;
+
+        private void OnDestroy()
+        {
+            if (Screen != null)
+                Screen.Remove(this);
+        }
     }
 
     private static TMP_FontAsset HeaderFont(DefaultUIButton button) =>
