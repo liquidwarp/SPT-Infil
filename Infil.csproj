@@ -28,9 +28,6 @@
         <Reference Include="DynamicMaps">
             <HintPath>$(SPTPath)\BepInEx\plugins\mpstark-dynamicmaps\DynamicMaps.dll</HintPath>
         </Reference>
-        <Reference Include="Fika.Core">
-            <HintPath>$(SPTPath)\BepInEx\plugins\Fika\Fika.Core.dll</HintPath>
-        </Reference>
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(SPTPath)\EscapeFromTarkov_Data\Managed\Newtonsoft.Json.dll</HintPath>
         </Reference>

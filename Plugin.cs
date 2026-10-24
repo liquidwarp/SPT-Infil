@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
@@ -36,8 +35,8 @@ public class Plugin : BaseUnityPlugin
         _patchManager.AddPatch(new ConfirmationScreenPatch());
         _patchManager.AddPatch(new RaidStartedPatch());
 
-        if (FikaLoaded)
-            AddFikaPatches();
+        if (FikaLoaded && SpawnTogetherPatch.Create() is { } fikaPatch)
+            _patchManager.AddPatch(fikaPatch);
 
         _patchManager.EnablePatches();
     }
@@ -49,7 +48,4 @@ public class Plugin : BaseUnityPlugin
         ConfirmationScreenPatch.RemoveText();
         _patchManager?.DisablePatches();
     }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void AddFikaPatches() => _patchManager.AddPatch(new ReceiveSpawnPointPatch());
 }
