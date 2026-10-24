@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using DynamicMaps.Data;
 using DynamicMaps.UI;
 using DynamicMaps.UI.Controls;
@@ -11,23 +12,33 @@ namespace Liquidwarp.Infil.Map;
 
 public static class MapDefCatalog
 {
-    private static readonly AccessTools.FieldRef<ModdedMapScreen, MapSelectDropdown> Dropdown =
-        AccessTools.FieldRefAccess<ModdedMapScreen, MapSelectDropdown>("_mapSelectDropdown");
+    private const string DropdownField = "_mapSelectDropdown";
+
+    private static readonly FieldInfo Dropdown = FindDropdown();
+
+    private static FieldInfo FindDropdown()
+    {
+        var field = AccessTools.Field(typeof(ModdedMapScreen), DropdownField);
+        if (field == null)
+            Plugin.LogSource.LogWarning($"DynamicMaps has no {nameof(ModdedMapScreen)}.{DropdownField} to list its maps: no map will offer spawn choices");
+        return field;
+    }
 
     public static MapDef Find(string locationId)
     {
         var mapScreen = DynamicMaps.Plugin.Instance?.Map;
-        if (locationId == null || mapScreen == null)
+        if (locationId == null || mapScreen == null || Dropdown?.GetValue(mapScreen) is not MapSelectDropdown dropdown)
             return null;
 
-        var dropdown = Dropdown(mapScreen);
-        if (dropdown == null)
-            return null;
+        MapDef found = null;
+        foreach (var mapDef in dropdown.GetMapDefs())
+        {
+            if (mapDef.MapInternalNames.Contains(locationId, StringComparer.OrdinalIgnoreCase)
+                && (found == null || string.Compare(mapDef.DisplayName, found.DisplayName, StringComparison.CurrentCulture) < 0))
+                found = mapDef;
+        }
 
-        return dropdown.GetMapDefs()
-            .Where(mapDef => mapDef.MapInternalNames.Contains(locationId, StringComparer.OrdinalIgnoreCase))
-            .OrderBy(mapDef => mapDef.DisplayName)
-            .FirstOrDefault();
+        return found;
     }
 
     private static readonly string[] Directions = ["east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"];
@@ -44,12 +55,19 @@ public static class MapDefCatalog
 
     private static string FindLandmark(MapDef mapDef, Vector3 mapPosition)
     {
-        var nearest = mapDef.Labels?
-            .Where(label => !string.IsNullOrWhiteSpace(label.Text))
-            .OrderBy(label => Vector2.Distance(label.Position, mapPosition))
-            .FirstOrDefault();
+        string nearest = null;
+        var nearestDistance = float.MaxValue;
+        foreach (var label in mapDef.Labels ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(label.Text))
+                continue;
 
-        return nearest?.Text.Replace('\n', ' ').Trim();
+            var distance = Vector2.Distance(label.Position, mapPosition);
+            if (distance < nearestDistance)
+                (nearest, nearestDistance) = (label.Text, distance);
+        }
+
+        return nearest?.Replace('\n', ' ').Trim();
     }
 
     private static string FindDirection(MapDef mapDef, Vector3 mapPosition)

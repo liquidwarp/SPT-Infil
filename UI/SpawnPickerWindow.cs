@@ -35,14 +35,6 @@ public class SpawnPickerWindow : InputNode
 
     private static readonly Color MarkerColor = new(0.30f, 0.75f, 1.00f);
 
-    private static readonly Dictionary<LayerStatus, float> AlwaysShown = new()
-    {
-        [LayerStatus.Hidden] = 1f,
-        [LayerStatus.Underneath] = 1f,
-        [LayerStatus.OnTop] = 1f,
-        [LayerStatus.FullReveal] = 1f,
-    };
-
     private static SpawnPickerWindow _instance;
     private static GameObject _cover;
     private static Sprite _dotSprite;
@@ -62,14 +54,22 @@ public class SpawnPickerWindow : InputNode
     private class SpawnMarker
     {
         public SpawnSpot Spot;
-        public MapMarker Marker;
+        public Transform Marker;
+        public Image Image;
         public string Levels;
     }
 
     static SpawnPickerWindow()
     {
-        MapMarker.CategoryImageAlphaLayerStatus[MarkerCategory] = AlwaysShown;
-        MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = AlwaysShown;
+        var alwaysShown = new Dictionary<LayerStatus, float>
+        {
+            [LayerStatus.Hidden] = 1f,
+            [LayerStatus.Underneath] = 1f,
+            [LayerStatus.OnTop] = 1f,
+            [LayerStatus.FullReveal] = 1f,
+        };
+        MapMarker.CategoryImageAlphaLayerStatus[MarkerCategory] = alwaysShown;
+        MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = alwaysShown;
     }
 
     public static bool Open(MapDef mapDef, LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
@@ -192,7 +192,12 @@ public class SpawnPickerWindow : InputNode
 
         var layers = mapView.MapLayerContainer.GetComponentsInChildren<MapLayer>(true);
         if (layers.Length > 0)
-            mapView.SelectTopLevel(layers.Max(layer => layer.Level));
+        {
+            var topLevel = int.MinValue;
+            foreach (var layer in layers)
+                topLevel = Mathf.Max(topLevel, layer.Level);
+            mapView.SelectTopLevel(topLevel);
+        }
         ShowAllLevels(mapView, layers);
 
         // Dims the map and its labels, under our markers; the mask clips it to the map area
@@ -225,7 +230,7 @@ public class SpawnPickerWindow : InputNode
             marker.Size = MarkerSize;
             marker.Label.rectTransform.anchoredPosition = new Vector2(0f, MarkerSize.y / 2f - SelectedMarkerSize.y * DotRadius);
 
-            var spawnMarker = new SpawnMarker { Spot = spot, Marker = marker, Levels = DescribeLevels(layers, spot) };
+            var spawnMarker = new SpawnMarker { Spot = spot, Marker = marker.transform, Image = marker.Image, Levels = DescribeLevels(layers, spot) };
             marker.gameObject.AddComponent<ClickTrigger>().Init(eventData =>
             {
                 if (eventData.button == PointerEventData.InputButton.Left)
@@ -299,8 +304,8 @@ public class SpawnPickerWindow : InputNode
         }
 
         SetMarkerLook(_selected, selected: true);
-        _selected.Marker.transform.SetAsLastSibling();
-        _pulse.transform.SetParent(_selected.Marker.transform, false);
+        _selected.Marker.SetAsLastSibling();
+        _pulse.transform.SetParent(_selected.Marker, false);
         _pulse.transform.SetAsFirstSibling();
         _pulse.rectTransform.anchoredPosition = Vector2.zero;
         _pulseStart = Time.unscaledTime;
@@ -320,13 +325,18 @@ public class SpawnPickerWindow : InputNode
     }
 
     private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected) =>
-        spawnMarker.Marker.Image.rectTransform.sizeDelta = selected ? SelectedMarkerSize : MarkerSize;
+        spawnMarker.Image.rectTransform.sizeDelta = selected ? SelectedMarkerSize : MarkerSize;
 
     private static void ShowAllLevels(MapView mapView, MapLayer[] layers)
     {
-        // The default level is opaque, so it goes at the bottom with the other levels see-through above it
-        foreach (var layer in layers.OrderBy(layer => layer.IsOnDefaultLevel ? 0 : 1).ThenBy(layer => layer.Level))
+        // The default level is opaque, so it goes at the bottom with the other levels see-through above it.
+        var order = new (int NotDefault, int Level, int Index)[layers.Length];
+        for (var i = 0; i < layers.Length; i++)
+            order[i] = (layers[i].IsOnDefaultLevel ? 0 : 1, layers[i].Level, i);
+        Array.Sort(order);
+        foreach (var (_, _, index) in order)
         {
+            var layer = layers[index];
             layer.gameObject.SetActive(true);
             layer.transform.SetAsLastSibling();
             layer.GetComponent<Graphic>().color = new Color(1f, 1f, 1f, layer.IsOnDefaultLevel ? 1f : OtherLevelAlpha);
@@ -334,25 +344,47 @@ public class SpawnPickerWindow : InputNode
 
         foreach (var label in mapView.MapLabelsContainer.GetComponentsInChildren<MapLabel>(true))
         {
-            label.LabelAlphaLayerStatus = AlwaysShown;
+            label.LabelAlphaLayerStatus = MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory];
             label.HandleNewLayerStatus(LayerStatus.OnTop);
         }
     }
 
-    // Same rule as DynamicMaps: the matching layer with the smallest bound, else the default level
     private static string DescribeLevels(MapLayer[] layers, SpawnSpot spot)
     {
         if (layers.Length == 0)
             return null;
 
-        var defaultLayer = layers.FirstOrDefault(layer => layer.IsOnDefaultLevel);
-        var levels = spot.PointPositions
-            .Select(position => FindLayer(layers, MathUtils.ConvertToMapPosition(position)) ?? defaultLayer)
-            .GroupBy(layer => layer)
-            .OrderBy(group => group.Key != null ? group.Key.Level : int.MaxValue)
-            .Select(group => $"{(group.Key != null ? group.Key.name : "Other")}: {group.Count()}");
+        MapLayer defaultLayer = null;
+        foreach (var layer in layers)
+        {
+            if (layer.IsOnDefaultLevel)
+            {
+                defaultLayer = layer;
+                break;
+            }
+        }
 
-        return string.Join("\n", levels);
+        var counts = new Dictionary<MapLayer, int>();
+        var others = 0;
+        foreach (var position in spot.PointPositions)
+        {
+            var layer = FindLayer(layers, MathUtils.ConvertToMapPosition(position)) ?? defaultLayer;
+            if (layer == null)
+                others++;
+            else
+                counts[layer] = counts.TryGetValue(layer, out var count) ? count + 1 : 1;
+        }
+
+        var lines = new List<(int Level, int Index, string Text)>();
+        foreach (var (layer, count) in counts)
+            lines.Add((layer.Level, lines.Count, $"{layer.name}: {count}"));
+        lines.Sort();
+
+        var text = lines.Select(line => line.Text).ToList();
+        if (others > 0)
+            text.Add($"Other: {others}");
+
+        return string.Join("\n", text);
     }
 
     private static MapLayer FindLayer(MapLayer[] layers, Vector3 position)

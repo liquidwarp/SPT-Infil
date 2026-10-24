@@ -37,12 +37,13 @@ public static class SpawnSpots
         ["Sandbox_high"] = 100f,
     };
 
-    private static readonly Dictionary<(string, EPlayerSide, MapDef), (SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
+    // Keyed by the MapDef as an object, since no class layout may use a DynamicMaps type directly.
+    private static readonly Dictionary<(string, EPlayerSide, object), (SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
 
     public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side, MapDef mapDef)
     {
         var source = location.SpawnPointParams ?? [];
-        var key = (location.Id, side, mapDef);
+        var key = (location.Id, side, (object)mapDef);
         if (Cache.TryGetValue(key, out var cached) && SameSpawnPoints(cached.Source, source))
             return cached.Spots;
 
@@ -62,21 +63,22 @@ public static class SpawnSpots
             .ToList();
         var positions = points.Select(point => (Vector3)point.Position).ToList();
 
-        return Cluster(positions, maxSpread)
-            .Select((members, index) =>
+        var spots = new List<SpawnSpot>();
+        foreach (var members in Cluster(positions, maxSpread))
+        {
+            var memberPositions = members.Select(i => positions[i]).ToList();
+            var position = memberPositions.Aggregate(Vector3.zero, (sum, p) => sum + p) / memberPositions.Count;
+            spots.Add(new SpawnSpot
             {
-                var memberPositions = members.Select(i => positions[i]).ToList();
-                var position = memberPositions.Aggregate(Vector3.zero, (sum, p) => sum + p) / memberPositions.Count;
-                return new SpawnSpot
-                {
-                    Label = $"#{index + 1}",
-                    Position = position,
-                    Where = mapDef != null ? MapDefCatalog.DescribeWhere(mapDef, MathUtils.ConvertToMapPosition(position)) : null,
-                    PointIds = new HashSet<string>(members.Select(i => points[i].Id)),
-                    PointPositions = memberPositions,
-                };
-            })
-            .ToList();
+                Label = $"#{spots.Count + 1}",
+                Position = position,
+                Where = mapDef != null ? MapDefCatalog.DescribeWhere(mapDef, MathUtils.ConvertToMapPosition(position)) : null,
+                PointIds = new HashSet<string>(members.Select(i => points[i].Id)),
+                PointPositions = memberPositions,
+            });
+        }
+
+        return spots;
     }
 
     /// Complete-linkage clustering

@@ -115,8 +115,7 @@ public static class LocationScreenAdvance
         if (controller.RaidSettings.isInTransition)
             return $"{locationId} is reached by transit";
 
-        var mapDef = MapDefCatalog.Find(locationId);
-        if (mapDef == null)
+        if (MapDefCatalog.Find(locationId) == null)
             return $"No DynamicMaps map for {locationId}";
 
         if (MapVariantsMaps.Manages(locationId))
@@ -138,6 +137,15 @@ public static class LocationScreenAdvance
             if (location == null)
                 return $"The server sent no data for {locationId}";
         }
+
+        return OpenPicker(controller, location, locationId, advance);
+    }
+
+    private static string OpenPicker(Controller controller, LocationSettings.Location location, string locationId, Action advance)
+    {
+        var mapDef = MapDefCatalog.Find(locationId);
+        if (mapDef == null)
+            return $"No DynamicMaps map for {locationId}";
 
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;
