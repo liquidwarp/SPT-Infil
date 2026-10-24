@@ -8,7 +8,7 @@ using SPT.Common.Http;
 
 namespace Liquidwarp.Infil.Compat;
 
-public static class MapVariantsMaps
+public static class MapVariantsCompat
 {
     public const string Guid = "com.lennoxp90.mapvariants";
 

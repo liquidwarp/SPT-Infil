@@ -8,6 +8,7 @@ using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
+using Liquidwarp.Infil.Compat;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
@@ -317,7 +318,7 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.SetActive(_selected != null);
         if (_selected == null)
         {
-            _infoText.text = Plugin.FikaLoaded
+            _infoText.text = FikaCompat.Loaded
                 ? "<b>Default: Fika's choice</b>\n\nFika spawns you as usual: with the host when the group spawns together, otherwise at a random spawn point."
                 : "<b>Default: Random spawn</b>\n\nYou spawn at a random spawn point, as usual.";
             return;

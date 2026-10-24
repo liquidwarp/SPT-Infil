@@ -99,10 +99,10 @@ public static class LocationScreenAdvance
         if (MapDefCatalog.Find(locationId) == null)
             return $"No DynamicMaps map for {locationId}";
 
-        if (MapVariantsMaps.Manages(locationId))
+        if (MapVariantsCompat.Manages(locationId))
         {
             // Straight from MapVariants' window, whose choice the server just acknowledged
-            var backport = MapVariantsMaps.ChoseBackport(locationId) ?? await MapVariantsMaps.ServesBackport(locationId);
+            var backport = MapVariantsCompat.ChoseBackport(locationId) ?? await MapVariantsCompat.ServesBackport(locationId);
             if (backport == null)
                 return $"The server did not say which {locationId} it serves";
             if (backport.Value)
