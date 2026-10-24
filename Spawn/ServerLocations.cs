@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using EFT;
@@ -11,36 +12,27 @@ public static class ServerLocations
 {
     private static readonly JsonSerializer Serializer = JsonSerializer.Create(EftJsonConverters.SerializerSettings);
 
-    private static string _json;
+    private static Dictionary<string, LocationSettings.Location> _locations;
 
     public static async Task<LocationSettings.Location> Fetch(string locationKey)
     {
-        if (string.IsNullOrEmpty(_json))
-            _json = await RequestHandler.GetJsonAsync("/client/locations");
-
-        var json = _json;
-        return string.IsNullOrEmpty(json) ? null : await Task.Run(() => Extract(json, locationKey));
+        _locations ??= await Load();
+        return _locations != null && _locations.TryGetValue(locationKey, out var location) ? location : null;
     }
 
-    private static LocationSettings.Location Extract(string json, string locationKey)
+    private static async Task<Dictionary<string, LocationSettings.Location>> Load()
+    {
+        var json = await RequestHandler.GetJsonAsync("/client/locations");
+        return string.IsNullOrEmpty(json) ? null : await Task.Run(() => Extract(json));
+    }
+
+    private static Dictionary<string, LocationSettings.Location> Extract(string json)
     {
         using var reader = new JsonTextReader(new StringReader(json));
         while (reader.Read() && !(reader.TokenType == JsonToken.StartObject && reader.Path == "data.locations"))
         {
         }
 
-        while (reader.Read() && reader.TokenType == JsonToken.PropertyName)
-        {
-            if ((string)reader.Value != locationKey)
-            {
-                reader.Skip();
-                continue;
-            }
-
-            reader.Read();
-            return Serializer.Deserialize<LocationSettings.Location>(reader);
-        }
-
-        return null;
+        return Serializer.Deserialize<Dictionary<string, LocationSettings.Location>>(reader);
     }
 }

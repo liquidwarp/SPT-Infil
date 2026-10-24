@@ -11,6 +11,7 @@ using JsonType;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -62,7 +63,7 @@ public class SpawnPickerWindow : InputNode
         public string Levels;
     }
 
-    static SpawnPickerWindow()
+    private static void ShowMarkerCategory()
     {
         var alwaysShown = new Dictionary<LayerStatus, float>
         {
@@ -75,7 +76,7 @@ public class SpawnPickerWindow : InputNode
         MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = alwaysShown;
     }
 
-    public static void Open(MapDef mapDef, LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
+    public static void Open(MapDef mapDef, LocationSettings.Location location, List<SpawnSpot> spots, ESideType side, InputNode screen, DefaultUIButton ownerButton, Action onNext)
     {
         CloseOpen();
 
@@ -92,7 +93,7 @@ public class SpawnPickerWindow : InputNode
 
         try
         {
-            _instance.Build(mapDef, playerSide);
+            _instance.Build(mapDef, spots);
         }
         catch
         {
@@ -174,18 +175,19 @@ public class SpawnPickerWindow : InputNode
         return background;
     }
 
-    private void Build(MapDef mapDef, EPlayerSide playerSide)
+    private void Build(MapDef mapDef, List<SpawnSpot> spots)
     {
+        ShowMarkerCategory();
         var background = CreateBackground(gameObject);
 
-        BuildMap(background, mapDef, playerSide);
+        BuildMap(background, mapDef, spots);
         BuildPanel(background);
 
         var chosen = SpawnChoiceStore.Get(_location.Id, _side);
         Select(chosen != null ? _markers.FirstOrDefault(marker => marker.Spot.PointIds.SetEquals(chosen.PointIds)) : null);
     }
 
-    private void BuildMap(GameObject parent, MapDef mapDef, EPlayerSide playerSide)
+    private void BuildMap(GameObject parent, MapDef mapDef, List<SpawnSpot> spots)
     {
         var mapArea = UIUtils.CreateUIGameObject(parent, "MapArea");
         var mapAreaRect = mapArea.GetRectTransform();
@@ -240,7 +242,7 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.AddComponent<Canvas>();
         _pulse.gameObject.SetActive(false);
 
-        foreach (var spot in SpawnSpots.For(_location, playerSide, mapDef))
+        foreach (var spot in spots)
         {
             var marker = mapView.AddMapMarker(new MapMarkerDef
             {
@@ -294,7 +296,7 @@ public class SpawnPickerWindow : InputNode
         AddButton(panel, "BACK", 30f, Close);
     }
 
-    private void AddButton(GameObject parent, string text, float bottom, Action onClick)
+    private void AddButton(GameObject parent, string text, float bottom, UnityAction onClick)
     {
         var buttonObject = Instantiate(_ownerButton.gameObject, parent.transform, false);
         buttonObject.name = text;
@@ -308,7 +310,7 @@ public class SpawnPickerWindow : InputNode
         button.Interactable = true;
         button.SetRawText(text, 22);
         button.OnClick.RemoveAllListeners();
-        button.OnClick.AddListener(() => onClick());
+        button.OnClick.AddListener(onClick);
     }
 
     private void Select(SpawnMarker spawnMarker)
@@ -396,16 +398,14 @@ public class SpawnPickerWindow : InputNode
                 counts[layer] = counts.TryGetValue(layer, out var count) ? count + 1 : 1;
         }
 
-        var lines = new List<(int Level, int Index, string Text)>();
+        var lines = new List<(int Level, string Text)>();
         foreach (var (layer, count) in counts)
-            lines.Add((layer.Level, lines.Count, $"{layer.name}: {count}"));
+            lines.Add((layer.Level, $"{layer.name}: {count}"));
+        if (others > 0)
+            lines.Add((int.MaxValue, $"Other: {others}"));
         lines.Sort();
 
-        var text = lines.Select(line => line.Text).ToList();
-        if (others > 0)
-            text.Add($"Other: {others}");
-
-        return string.Join("\n", text);
+        return string.Join("\n", lines.Select(line => line.Text));
     }
 
     private static MapLayer FindLayer(MapLayer[] layers, Vector3 position)

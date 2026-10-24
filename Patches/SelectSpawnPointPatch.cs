@@ -6,6 +6,7 @@ using EFT;
 using EFT.Game.Spawning;
 using Liquidwarp.Infil.Spawn;
 using SPT.Reflection.Patching;
+using SPT.Reflection.Utils;
 
 namespace Liquidwarp.Infil.Patches;
 
@@ -18,13 +19,16 @@ public class SelectSpawnPointPatch : ModulePatch
     }
 
     [PatchPostfix]
-    public static void Postfix(SpawnSystem __instance, ESpawnCategory category, EPlayerSide side, IPlayer person, ref ISpawnPoint __result)
+    public static void Postfix(SpawnSystem __instance, ESpawnCategory category, EPlayerSide side, IPlayer person, string profileId, ref ISpawnPoint __result)
     {
         if (category != ESpawnCategory.Player)
             return;
 
         try
         {
+            if (!IsOwnProfile(profileId))
+                return;
+
             var spot = SpawnChoiceStore.GetForRaid(side);
             if (spot == null)
                 return;
@@ -36,14 +40,19 @@ public class SelectSpawnPointPatch : ModulePatch
                 return;
             }
 
-            var point = points.Contains(__result) ? __result : SafestPoint(__instance, points, side, person);
-            __result = point;
-            Plugin.LogSource.LogInfo($"Spawning at {spot.Label}: point {point.Id} {point.Position}");
+            __result = points.Contains(__result) ? __result : SafestPoint(__instance, points, side, person);
+            Plugin.LogSource.LogInfo($"Spawning at {spot.Label}: point {__result.Id} {__result.Position}");
         }
         catch (Exception ex)
         {
             Plugin.LogSource.LogError($"Could not apply the spawn choice: {ex}");
         }
+    }
+
+    private static bool IsOwnProfile(string profileId)
+    {
+        var session = PatchConstants.BackEndSession;
+        return profileId != null && session != null && (profileId == session.Profile?.Id || profileId == session.ProfileOfPet?.Id);
     }
 
     private static ISpawnPoint SafestPoint(SpawnSystem spawnSystem, List<ISpawnPoint> points, EPlayerSide side, IPlayer person)

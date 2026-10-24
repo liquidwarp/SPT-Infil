@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Logging;
 using Liquidwarp.Infil.Compat;
@@ -28,20 +30,31 @@ public class Plugin : BaseUnityPlugin
 {
     public static ManualLogSource LogSource;
 
-    private PatchManager _patchManager;
+    private readonly List<ModulePatch> _patches = [];
 
     private void Awake()
     {
         LogSource = Logger;
         MapVariantsCompat.Preload();
 
-        _patchManager = new PatchManager(this);
-        _patchManager.AddPatch(new SelectSpawnPointPatch());
-        _patchManager.AddPatch(new NextScreenPatch());
-        _patchManager.AddPatch(new ReadyScreenPatch());
-        _patchManager.AddPatch(new ConfirmationScreenPatch());
-        _patchManager.AddPatch(new RaidStartedPatch());
-        _patchManager.EnablePatches();
+        Enable(new SelectSpawnPointPatch());
+        Enable(new AdvanceScreenPatch(ready: false));
+        Enable(new AdvanceScreenPatch(ready: true));
+        Enable(new ConfirmationScreenPatch());
+        Enable(new RaidStartedPatch());
+    }
+
+    private void Enable(ModulePatch patch)
+    {
+        try
+        {
+            patch.Enable();
+            _patches.Add(patch);
+        }
+        catch (Exception ex)
+        {
+            LogSource.LogError($"Could not enable {patch.GetType().Name}: {ex}");
+        }
     }
 
     private void OnDestroy()
@@ -49,6 +62,7 @@ public class Plugin : BaseUnityPlugin
         SpawnPickerWindow.CloseOpen();
         SpawnPickerWindow.CloseCover();
         ConfirmationScreenPatch.RemoveText();
-        _patchManager?.DisablePatches();
+        foreach (var patch in _patches)
+            patch.Disable();
     }
 }

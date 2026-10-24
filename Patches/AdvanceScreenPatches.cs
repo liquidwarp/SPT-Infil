@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
+using DynamicMaps.Data;
 using EFT;
 using EFT.UI.Matchmaker;
 using HarmonyLib;
@@ -15,48 +15,41 @@ using Controller = EFT.UI.Matchmaker.MatchMakerSelectionLocationScreen.Selection
 
 namespace Liquidwarp.Infil.Patches;
 
-public class NextScreenPatch : ModulePatch
+public class AdvanceScreenPatch(bool ready) : ModulePatch
 {
     // Harmony keys patches by MethodInfo: reached through Controller, this method would get a detour apart from MapVariants' and override it
     protected override MethodBase GetTargetMethod() =>
-        AccessTools.Method(typeof(Controller), nameof(Controller.ShowNextScreen))?.GetDeclaredMember();
+        AccessTools.Method(typeof(Controller), ready ? nameof(Controller.ShowReadyScreen) : nameof(Controller.ShowNextScreen))?.GetDeclaredMember();
 
     [PatchPrefix]
     [HarmonyPriority(Priority.Low)]
-    public static bool Prefix(object __instance, bool __runOriginal) =>
-        LocationScreenAdvance.Intercept(__instance, __runOriginal, ready: false);
-}
-
-public class ReadyScreenPatch : ModulePatch
-{
-    protected override MethodBase GetTargetMethod() =>
-        AccessTools.Method(typeof(Controller), nameof(Controller.ShowReadyScreen))?.GetDeclaredMember();
-
-    [PatchPrefix]
-    [HarmonyPriority(Priority.Low)]
-    public static bool Prefix(object __instance, bool __runOriginal) =>
-        LocationScreenAdvance.Intercept(__instance, __runOriginal, ready: true);
+    public static bool Prefix(object __instance, bool __runOriginal, MethodBase __originalMethod) =>
+        LocationScreenAdvance.Intercept(__instance, __runOriginal, ready: __originalMethod.Name == nameof(Controller.ShowReadyScreen));
 }
 
 public static class LocationScreenAdvance
 {
-    private static readonly AccessTools.FieldRef<MatchMakerSelectionLocationScreen, Profile> Profile =
-        AccessTools.FieldRefAccess<MatchMakerSelectionLocationScreen, Profile>("_profile");
-
-    private static readonly Dictionary<string, LocationSettings.Location> OriginalLocations = new();
-
     // The patched method is shared by every screen controller of the sequence: __instance may be another one
     public static bool Intercept(object instance, bool runOriginal, bool ready)
     {
         if (instance is not Controller controller || !runOriginal)
             return true;
 
-        var location = controller.Screen.SelectedLocation;
-        if (location == null)
-            return true;
+        try
+        {
+            var location = controller.Screen.SelectedLocation;
+            if (location == null)
+                return true;
 
-        Offer(controller, location, ready);
-        return false;
+            Offer(controller, location, ready);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Plugin.LogSource.LogError($"Could not offer the spawn picker, using default spawns: {ex}");
+            SpawnChoiceStore.Clear();
+            return true;
+        }
     }
 
     private static async void Offer(Controller controller, LocationSettings.Location location, bool ready)
@@ -87,7 +80,14 @@ public static class LocationScreenAdvance
 
         SpawnChoiceStore.Clear();
         Plugin.LogSource.LogInfo($"{fallback}, using default spawns");
-        advance();
+        try
+        {
+            advance();
+        }
+        catch (Exception ex)
+        {
+            Plugin.LogSource.LogError($"Could not advance from the location screen: {ex}");
+        }
     }
 
     private static async Task<string> TryOpenPicker(Controller controller, LocationSettings.Location location, Action advance)
@@ -96,7 +96,8 @@ public static class LocationScreenAdvance
         if (controller.RaidSettings.isInTransition)
             return $"{locationId} is reached by transit";
 
-        if (MapDefCatalog.Find(locationId) == null)
+        object mapDef = MapDefCatalog.Find(locationId);
+        if (mapDef == null)
             return $"No DynamicMaps map for {locationId}";
 
         if (MapVariantsCompat.Manages(locationId))
@@ -108,36 +109,24 @@ public static class LocationScreenAdvance
             if (backport.Value)
                 return $"No DynamicMaps map for the backport {locationId}";
 
-            location = await OriginalLocation(location);
+            location = await ServerLocations.Fetch(location._Id);
             if (location == null)
                 return $"The server sent no data for {locationId}";
         }
 
-        return OpenPicker(controller, location, locationId, advance);
+        return OpenPicker(controller, location, (MapDef)mapDef, advance);
     }
 
-    private static string OpenPicker(Controller controller, LocationSettings.Location location, string locationId, Action advance)
+    private static string OpenPicker(Controller controller, LocationSettings.Location location, MapDef mapDef, Action advance)
     {
-        var mapDef = MapDefCatalog.Find(locationId);
-        if (mapDef == null)
-            return $"No DynamicMaps map for {locationId}";
-
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;
-        var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : Profile(screen).Info.Side;
-        SpawnPickerWindow.Open(mapDef, location, side, playerSide, screen, screen._acceptButton, advance);
+        var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : controller.Session.Profile.Info.Side;
+        var spots = SpawnSpots.For(location, playerSide, mapDef);
+        if (spots.Count == 0)
+            return $"No {playerSide} spawn point on {location.Id}";
+
+        SpawnPickerWindow.Open(mapDef, location, spots, side, screen, screen._acceptButton, advance);
         return null;
-    }
-
-    private static async Task<LocationSettings.Location> OriginalLocation(LocationSettings.Location selected)
-    {
-        if (OriginalLocations.TryGetValue(selected.Id, out var location))
-            return location;
-
-        location = await ServerLocations.Fetch(selected._Id);
-        if (location != null)
-            OriginalLocations[selected.Id] = location;
-
-        return location;
     }
 }

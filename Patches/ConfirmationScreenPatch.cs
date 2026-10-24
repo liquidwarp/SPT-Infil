@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Reflection;
 using EFT;
 using EFT.UI.Matchmaker;
@@ -16,8 +15,7 @@ public class ConfirmationScreenPatch : ModulePatch
     private static TextMeshProUGUI _text;
 
     protected override MethodBase GetTargetMethod() =>
-        AccessTools.GetDeclaredMethods(typeof(MatchMakerAcceptScreen))
-            .First(method => method.Name == nameof(MatchMakerAcceptScreen.Show) && method.GetParameters().Length == 3);
+        AccessTools.DeclaredMethod(typeof(MatchMakerAcceptScreen), nameof(MatchMakerAcceptScreen.Show), [typeof(IEftSession), typeof(RaidSettings), typeof(RaidSettings)]);
 
     [PatchPostfix]
     public static void Postfix(MatchMakerAcceptScreen __instance, RaidSettings raidSettings)
