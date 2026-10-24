@@ -125,9 +125,8 @@ public static class LocationScreenAdvance
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;
         var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : Profile(screen).Info.Side;
-        return SpawnPickerWindow.Open(mapDef, location, side, playerSide, screen, screen._acceptButton, advance)
-            ? null
-            : "The spawn picker failed to open";
+        SpawnPickerWindow.Open(mapDef, location, side, playerSide, screen, screen._acceptButton, advance);
+        return null;
     }
 
     private static async Task<LocationSettings.Location> OriginalLocation(LocationSettings.Location selected)

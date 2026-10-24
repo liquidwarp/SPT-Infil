@@ -72,7 +72,7 @@ public class SpawnPickerWindow : InputNode
         MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = alwaysShown;
     }
 
-    public static bool Open(MapDef mapDef, LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
+    public static void Open(MapDef mapDef, LocationSettings.Location location, ESideType side, EPlayerSide playerSide, InputNode screen, DefaultUIButton ownerButton, Action onNext)
     {
         CloseOpen();
 
@@ -90,13 +90,11 @@ public class SpawnPickerWindow : InputNode
         try
         {
             _instance.Build(mapDef, playerSide);
-            return true;
         }
-        catch (Exception ex)
+        catch
         {
-            Plugin.LogSource.LogError($"Could not open the spawn picker: {ex}");
             Destroy(root);
-            return false;
+            throw;
         }
     }
 
