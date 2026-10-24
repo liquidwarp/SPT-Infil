@@ -23,6 +23,7 @@ namespace Liquidwarp.Infil;
 [BepInPlugin(MyModInfo.MOD_GUID, MyModInfo.MOD_NAME, MyModInfo.MOD_VERSION)]
 [BepInDependency("com.SPT.custom", MyModInfo.CLIENT_SPT_VERSION)]
 [BepInDependency(FikaCompat.Guid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(FikaCompat.HeadlessGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(MapVariantsCompat.Guid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("com.mpstark.dynamicmaps", MyModInfo.DYNAMIC_MAPS_VERSION)]
 public class Plugin : BaseUnityPlugin
@@ -34,6 +35,12 @@ public class Plugin : BaseUnityPlugin
     private void Awake()
     {
         LogSource = Logger;
+        if (FikaCompat.Headless)
+        {
+            Logger.LogInfo("Fika headless host detected: Infil is disabled");
+            return;
+        }
+
         MapVariantsCompat.Preload();
 
         _patchManager = new PatchManager(this);
@@ -51,9 +58,12 @@ public class Plugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        if (_patchManager == null)
+            return;
+
         SpawnPickerWindow.CloseOpen();
         SpawnPickerWindow.CloseCover();
         ConfirmationScreenPatch.RemoveText();
-        _patchManager?.DisablePatches();
+        _patchManager.DisablePatches();
     }
 }
