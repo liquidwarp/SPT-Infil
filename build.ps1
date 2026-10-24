@@ -28,6 +28,7 @@ $buildArgs = @(
     "-p:InstallMod=$($InstallMod.IsPresent)"
     "-p:HotReload=$($HotReload.IsPresent)"
     "-p:PackageRelease=$($PackageRelease.IsPresent)"
+    "-p:CheckLoadSafety=true"
     "-tlp:verbosity=detailed"
 )
 dotnet build @buildArgs

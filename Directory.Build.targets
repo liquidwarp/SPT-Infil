@@ -24,6 +24,10 @@ internal static class MyModInfo
         </ItemGroup>
     </Target>
 
+    <Target Name="CheckLoadSafety" AfterTargets="CoreCompile" Condition="'$(CheckLoadSafety)' == 'True'">
+        <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)check-load-safety.ps1&quot; -AssemblyPath &quot;@(IntermediateAssembly->'%(FullPath)')&quot;" StandardOutputImportance="High" />
+    </Target>
+
     <Target Name="InstallMod" AfterTargets="PostBuildEvent" Condition="'$(InstallMod)' == 'True'">
         <PropertyGroup>
             <PluginsDir>$(SPTPath)\$(ModDir)</PluginsDir>
