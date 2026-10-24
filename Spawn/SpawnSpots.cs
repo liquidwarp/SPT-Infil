@@ -37,19 +37,18 @@ public static class SpawnSpots
         ["Sandbox_high"] = 100f,
     };
 
-    // Keyed by the MapDef as an object, since no class layout may use a DynamicMaps type directly.
-    private static readonly Dictionary<(string, EPlayerSide, object), (SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
+    private static readonly Dictionary<(string, EPlayerSide), (object MapDef, SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
 
     public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side, MapDef mapDef)
     {
         var source = location.SpawnPointParams ?? [];
-        var key = (location.Id, side, (object)mapDef);
-        if (Cache.TryGetValue(key, out var cached) && SameSpawnPoints(cached.Source, source))
+        var key = (location.Id, side);
+        if (Cache.TryGetValue(key, out var cached) && ReferenceEquals(cached.MapDef, mapDef) && SameSpawnPoints(cached.Source, source))
             return cached.Spots;
 
         var maxSpread = MaxSpreadByLocation.TryGetValue(location.Id, out var spread) ? spread : DefaultMaxSpread;
         var spots = Build(source, side, mapDef, maxSpread);
-        Cache[key] = (source, spots);
+        Cache[key] = (mapDef, source, spots);
         return spots;
     }
 
