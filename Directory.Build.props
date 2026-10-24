@@ -4,7 +4,7 @@
         <Authors>Liquidwarp</Authors>
         <ModName>Infil</ModName>
         <ModGuidPrefix>net.liquidwarp</ModGuidPrefix>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <ClientSPTVersion>4.1.6</ClientSPTVersion>
         <DynamicMapsVersion>1.2.1</DynamicMapsVersion>
         <Product>$(ModName)</Product>
