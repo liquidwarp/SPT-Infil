@@ -25,7 +25,7 @@ public class SelectSpawnPointPatch : ModulePatch
 
         try
         {
-            var spot = SpawnChoiceStore.Get(side);
+            var spot = SpawnChoiceStore.GetForRaid(side);
             if (spot == null)
                 return;
 

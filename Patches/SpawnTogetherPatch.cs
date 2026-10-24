@@ -39,7 +39,8 @@ public class SpawnTogetherPatch : ModulePatch
 
         try
         {
-            if (_getRaidSettings.Invoke(__instance, null) is RaidSettings raidSettings && SpawnChoiceStore.Get(raidSettings.Side) != null)
+            if (_getRaidSettings.Invoke(__instance, null) is RaidSettings raidSettings
+                && SpawnChoiceStore.Get(raidSettings.SelectedLocation?.Id, raidSettings.Side) != null)
                 __result = false;
         }
         catch (Exception ex)

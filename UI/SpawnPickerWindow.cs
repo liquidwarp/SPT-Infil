@@ -180,7 +180,7 @@ public class SpawnPickerWindow : InputNode
         BuildMap(background, mapDef, playerSide);
         BuildPanel(background);
 
-        var chosen = SpawnChoiceStore.Get(_side);
+        var chosen = SpawnChoiceStore.Get(_location.Id, _side);
         Select(chosen != null ? _markers.FirstOrDefault(marker => marker.Spot.PointIds.SetEquals(chosen.PointIds)) : null);
     }
 
@@ -480,7 +480,7 @@ public class SpawnPickerWindow : InputNode
 
     private void Next()
     {
-        SpawnChoiceStore.Set(_side, _selected?.Spot);
+        SpawnChoiceStore.Set(_location.Id, _side, _selected?.Spot);
         Close();
         _onNext?.Invoke();
     }
