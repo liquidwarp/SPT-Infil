@@ -8,7 +8,7 @@ using SPT.Reflection.Patching;
 namespace Liquidwarp.Infil.Patches;
 
 /// Lets a Fika group member who picked a spawn use it instead of spawning with the host.
-/// Fika then spawns them as when pawning apart, through the spawn system SelectSpawnPointPatch patches.
+/// Fika then spawns them as when spawning apart, through the spawn system SelectSpawnPointPatch patches.
 /// IMPORTANT: Fika's members are found by name, so Infil doesn't reference Fika.
 public class SpawnTogetherPatch : ModulePatch
 {
