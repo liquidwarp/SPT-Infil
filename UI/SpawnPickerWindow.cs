@@ -8,7 +8,6 @@ using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
-using Liquidwarp.Infil.Compat;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
@@ -20,6 +19,9 @@ namespace Liquidwarp.Infil.UI;
 public class SpawnPickerWindow : InputNode
 {
     private const string MarkerCategory = "Infil";
+
+    private const string GroupNote =
+        "\n\n<color=#B3B3B3><i>With Fika, in a group set to spawn together, everyone spawns at the host's location regardless of your choice here.</i></color>";
 
     private static readonly Vector2 MapSize = new(1320f, 940f);
     private static readonly Vector2 PanelSize = new(460f, 940f);
@@ -318,9 +320,7 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.SetActive(_selected != null);
         if (_selected == null)
         {
-            _infoText.text = FikaCompat.Loaded
-                ? "<b>Default: Fika's choice</b>\n\nFika spawns you as usual: with the host when the group spawns together, otherwise at a random spawn point."
-                : "<b>Default: Random spawn</b>\n\nYou spawn at a random spawn point, as usual.";
+            _infoText.text = "<b>Default: Random spawn</b>\n\nYou spawn at a random spawn point, as usual." + GroupNote;
             return;
         }
 
@@ -342,7 +342,7 @@ public class SpawnPickerWindow : InputNode
             ? $"Possible spawn points:\n<indent=20>{_selected.Levels}</indent>"
             : $"Possible spawn points: {_selected.Spot.PointIds.Count}");
 
-        _infoText.text = string.Join("\n", lines);
+        _infoText.text = string.Join("\n", lines) + GroupNote;
     }
 
     private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected) =>
