@@ -11,9 +11,14 @@ public static class ServerLocations
 {
     private static readonly JsonSerializer Serializer = JsonSerializer.Create(EftJsonConverters.SerializerSettings);
 
+    private static string _json;
+
     public static async Task<LocationSettings.Location> Fetch(string locationKey)
     {
-        var json = await RequestHandler.GetJsonAsync("/client/locations");
+        if (string.IsNullOrEmpty(_json))
+            _json = await RequestHandler.GetJsonAsync("/client/locations");
+
+        var json = _json;
         return string.IsNullOrEmpty(json) ? null : await Task.Run(() => Extract(json, locationKey));
     }
 
