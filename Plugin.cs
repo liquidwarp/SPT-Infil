@@ -8,13 +8,18 @@ using SPT.Reflection.Patching;
 
 namespace Liquidwarp.Infil;
 
-// NOTE: No class layout (base type, interfaces, fields) in this mod may use a type from DynamicMaps directly!
+// NOTE: No class layout (base type, interfaces, fields) in this mod may use a type from other mods directly!
 //
-// A future DynamicMaps update may remove it, and a class using a missing type throws when loaded.
-// Unity's JSON converter scan loads every class. It would fail, leaving the game without its default JSON settings,
-// causing catastrophical issues downstream.
+// Fika and MapVariants may be absent, and a future DynamicMaps update may remove a type: a class whose layout uses a
+// missing type throws when loaded. Unity's JSON converter scan loads every class. It would fail, leaving the game without
+// its default JSON settings, causing catastrophical issues downstream.
 //
 // Lambdas, closures and locals in async methods count, the compiler turning them into fields.
+//
+// Method signatures and bodies may use DynamicMaps types: the scan never resolves them, and a missing type only fails the
+// call, which the picker's catches handle. Fika and MapVariants are only reached by name, through reflection.
+//
+// build.ps1 enforces this rule on the built assembly (check-load-safety.ps1).
 
 [BepInPlugin(MyModInfo.MOD_GUID, MyModInfo.MOD_NAME, MyModInfo.MOD_VERSION)]
 [BepInDependency("com.SPT.custom", MyModInfo.CLIENT_SPT_VERSION)]
