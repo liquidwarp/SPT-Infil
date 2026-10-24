@@ -13,6 +13,7 @@ internal static class MyModInfo
     public const string MOD_AUTHOR = "$(Authors)"%3B
     public const string MOD_VERSION = "$(Version)"%3B
     public const string CLIENT_SPT_VERSION = "$(ClientSPTVersion)"%3B
+    public const string DYNAMIC_MAPS_VERSION = "$(DynamicMapsVersion)"%3B
 }
 ]]></MyModInfoText>
         </PropertyGroup>

@@ -12,7 +12,7 @@ namespace Liquidwarp.Infil;
 [BepInDependency("com.SPT.custom", MyModInfo.CLIENT_SPT_VERSION)]
 [BepInDependency(FikaGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(MapVariantsMaps.Guid, BepInDependency.DependencyFlags.SoftDependency)]
-[BepInDependency("com.mpstark.dynamicmaps")]
+[BepInDependency("com.mpstark.dynamicmaps", MyModInfo.DYNAMIC_MAPS_VERSION)]
 public class Plugin : BaseUnityPlugin
 {
     private const string FikaGuid = "com.fika.core";
