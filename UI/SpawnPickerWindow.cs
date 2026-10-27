@@ -159,7 +159,7 @@ public class SpawnPickerWindow : InputNode
         var scaler = root.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Shrink;
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
         root.AddComponent<GraphicRaycaster>();
         return root;
     }
