@@ -8,6 +8,7 @@ using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
+using Liquidwarp.Infil.Compat;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
@@ -21,8 +22,9 @@ public class SpawnPickerWindow : InputNode
 {
     private const string MarkerCategory = "Infil";
 
-    private const string GroupNote =
-        "\n\n<color=#B3B3B3><i>With Fika, in a group set to spawn together, everyone spawns at the host's location regardless of your choice here.</i></color>";
+    private static string GroupNote => FikaClientSpawnPatch.Enabled
+        ?"\n\n<color=#B3B3B3><i>With Fika, your choice here overrides spawning together. Without one, in a group set to spawn together, you spawn at the host's location.</i></color>"
+        : "";
 
     private static readonly Vector2 MapSize = new(1320f, 940f);
     private static readonly Vector2 PanelSize = new(460f, 940f);

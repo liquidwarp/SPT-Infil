@@ -6,7 +6,7 @@ param(
     [Parameter(Mandatory)]
     [string]$AssemblyPath,
 
-    [string[]]$Forbidden = @('DynamicMaps', 'MapVariants.Client')
+    [string[]]$Forbidden = @('DynamicMaps', 'Fika.Core', 'MapVariants.Client')
 )
 
 $ErrorActionPreference = 'Stop'

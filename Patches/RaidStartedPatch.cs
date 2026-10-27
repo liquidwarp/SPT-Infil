@@ -12,5 +12,16 @@ public class RaidStartedPatch : ModulePatch
         AccessTools.Method(typeof(GameWorld), nameof(GameWorld.OnGameStarted));
 
     [PatchPostfix]
-    public static void Postfix() => SpawnChoiceStore.Clear();
+    public static void Postfix(GameWorld __instance)
+    {
+        if (SpawnChoiceStore.Unreached is { } unreached)
+        {
+            if (SpawnChoiceStore.IsFor(__instance.LocationId))
+                Plugin.LogSource.LogWarning($"{unreached} was never applied: the spawn was chosen without Infil");
+            else
+                Plugin.LogSource.LogInfo($"Dropping {unreached}: this game is on {__instance.LocationId}");
+        }
+
+        SpawnChoiceStore.Clear();
+    }
 }

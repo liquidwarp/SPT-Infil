@@ -33,6 +33,7 @@ public class SelectSpawnPointPatch : ModulePatch
             if (spot == null)
                 return;
 
+            SpawnChoiceStore.MarkReached();
             var points = __instance._spawnPoints.Where(p => spot.PointIds.Contains(p.Id)).ToList();
             if (points.Count == 0)
             {
