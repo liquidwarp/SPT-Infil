@@ -188,40 +188,21 @@ public class SpawnPickerWindow : InputNode
                 Select(null);
         });
 
-        // Without the map's own markers (extracts, transits...): we show only ours.
-        var mapView = MapView.Create(mapArea, "MapView");
-        var staticMarkers = mapDef.StaticMarkers;
-        mapDef.StaticMarkers = [];
-        try
-        {
-            mapView.LoadMap(mapDef);
-        }
-        finally
-        {
-            mapDef.StaticMarkers = staticMarkers;
-        }
+        var map = CreateMapOverview(mapArea, mapDef);
+        var zoom = FitMap(map.GetRectTransform(), mapAreaRect, mapDef);
 
-        var zoom = FitMap(mapView, mapAreaRect);
-
-        var layers = mapView.GetComponentsInChildren<MapLayer>(true);
-        if (layers.Length > 0)
-        {
-            var topLevel = int.MinValue;
-            foreach (var layer in layers)
-                topLevel = Mathf.Max(topLevel, layer.Level);
-            mapView.SelectTopLevel(topLevel);
-        }
-        ShowAllLevels(mapView, layers);
+        var layers = map.GetComponentsInChildren<MapLayer>(true);
+        ShowAllLevels(map, layers);
 
         // Dims the map and its labels, under our markers; the mask clips it to the map area
-        var dim = UIUtils.CreateUIGameObject(mapView.gameObject, "Dim");
+        var dim = UIUtils.CreateUIGameObject(map, "Dim");
         dim.GetRectTransform().sizeDelta = new Vector2(100000f, 100000f);
         var dimImage = dim.AddComponent<Image>();
         dimImage.color = new Color(0f, 0f, 0f, MapDim);
         dimImage.raycastTarget = false;
 
         // Our markers sit above the map and dim overlay, independent of DynamicMaps' marker hierarchy.
-        var markerContainer = UIUtils.CreateUIGameObject(mapView.gameObject, "InfilMarkers");
+        var markerContainer = UIUtils.CreateUIGameObject(map, "InfilMarkers");
         _pulse = UIUtils.CreateUIGameObject(markerContainer, "Pulse").AddComponent<Image>();
         _pulse.sprite = GetRingSprite();
         _pulse.raycastTarget = false;
@@ -271,13 +252,34 @@ public class SpawnPickerWindow : InputNode
         _markers.Add(spawnMarker);
     }
 
-    private static float FitMap(MapView mapView, RectTransform mapArea)
+    private static GameObject CreateMapOverview(GameObject parent, MapDef mapDef)
     {
-        var rect = mapView.RectTransform;
+        var map = UIUtils.CreateUIGameObject(parent, "InfilMap");
+        map.AddComponent<Canvas>();
+        map.AddComponent<GraphicRaycaster>();
+        var rect = map.GetRectTransform();
+        rect.sizeDelta = MathUtils.GetRotatedRectangle(mapDef.Bounds.Max - mapDef.Bounds.Min, mapDef.CoordinateRotation);
+        rect.localRotation = Quaternion.Euler(0f, 0f, mapDef.CoordinateRotation);
+
+        var layerContainer = UIUtils.CreateUIGameObject(map, "Layers");
+        foreach (var pair in mapDef.Layers)
+        {
+            var layer = MapLayer.Create(layerContainer, pair.Key, pair.Value, -mapDef.CoordinateRotation);
+            layer.IsOnDefaultLevel = layer.Level == mapDef.DefaultLevel;
+        }
+
+        var labelContainer = UIUtils.CreateUIGameObject(map, "Labels");
+        foreach (var labelDef in mapDef.Labels ?? [])
+            MapLabel.Create(labelContainer, labelDef, -mapDef.CoordinateRotation, 1f);
+
+        return map;
+    }
+
+    private static float FitMap(RectTransform rect, RectTransform mapArea, MapDef mapDef)
+    {
         var zoom = Mathf.Min(mapArea.rect.width / rect.sizeDelta.x, mapArea.rect.height / rect.sizeDelta.y) / 1.1f;
         rect.localScale = Vector3.one * zoom;
 
-        var mapDef = mapView.CurrentMapDef;
         var center = MathUtils.GetMidpoint(mapDef.Bounds.Min, mapDef.Bounds.Max);
         rect.anchoredPosition = -MathUtils.GetRotatedVector2(center, mapDef.CoordinateRotation) * zoom;
 
@@ -369,7 +371,7 @@ public class SpawnPickerWindow : InputNode
     private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected) =>
         spawnMarker.Image.rectTransform.sizeDelta = selected ? SelectedMarkerSize : MarkerSize;
 
-    private static void ShowAllLevels(MapView mapView, MapLayer[] layers)
+    private static void ShowAllLevels(GameObject map, MapLayer[] layers)
     {
         // The default level is opaque, so it goes at the bottom with the other levels see-through above it.
         var order = new (int NotDefault, int Level, int Index)[layers.Length];
@@ -391,7 +393,7 @@ public class SpawnPickerWindow : InputNode
             [LayerStatus.OnTop] = 1f,
             [LayerStatus.FullReveal] = 1f,
         };
-        foreach (var label in mapView.GetComponentsInChildren<MapLabel>(true))
+        foreach (var label in map.GetComponentsInChildren<MapLabel>(true))
         {
             label.LabelAlphaLayerStatus = alwaysShown;
             label.HandleNewLayerStatus(LayerStatus.OnTop);
