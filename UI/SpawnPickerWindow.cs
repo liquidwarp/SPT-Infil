@@ -204,18 +204,20 @@ public class SpawnPickerWindow : InputNode
                 Select(null);
         });
 
-        // LoadMap zooms out to fit the whole map in the area. Without the map's own markers (extracts, transits...): we show only ours
+        // Without the map's own markers (extracts, transits...): we show only ours.
         var mapView = MapView.Create(mapArea, "MapView");
         var staticMarkers = mapDef.StaticMarkers;
         mapDef.StaticMarkers = [];
         try
         {
-            mapView.LoadMap(mapDef, mapAreaRect);
+            mapView.LoadMap(mapDef);
         }
         finally
         {
             mapDef.StaticMarkers = staticMarkers;
         }
+
+        var zoom = FitMap(mapView, mapAreaRect);
 
         var layers = mapView.MapLayerContainer.GetComponentsInChildren<MapLayer>(true);
         if (layers.Length > 0)
@@ -254,6 +256,7 @@ public class SpawnPickerWindow : InputNode
                 Position = MathUtils.ConvertToMapPosition(spot.Position),
                 Color = MarkerColor,
             });
+            marker.transform.localScale = Vector3.one / zoom;
             marker.Size = MarkerSize;
             marker.Label.rectTransform.anchoredPosition = new Vector2(0f, MarkerSize.y / 2f - SelectedMarkerSize.y * DotRadius);
 
@@ -265,6 +268,19 @@ public class SpawnPickerWindow : InputNode
             });
             _markers.Add(spawnMarker);
         }
+    }
+
+    private static float FitMap(MapView mapView, RectTransform mapArea)
+    {
+        var rect = mapView.RectTransform;
+        var zoom = Mathf.Min(mapArea.rect.width / rect.sizeDelta.x, mapArea.rect.height / rect.sizeDelta.y) / 1.1f;
+        rect.localScale = Vector3.one * zoom;
+
+        var mapDef = mapView.CurrentMapDef;
+        var center = MathUtils.GetMidpoint(mapDef.Bounds.Min, mapDef.Bounds.Max);
+        rect.anchoredPosition = -MathUtils.GetRotatedVector2(center, mapDef.CoordinateRotation) * zoom;
+
+        return zoom;
     }
 
     private void BuildPanel(GameObject parent)
