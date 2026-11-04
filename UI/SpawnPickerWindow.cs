@@ -20,8 +20,6 @@ namespace Liquidwarp.Infil.UI;
 
 public class SpawnPickerWindow : InputNode
 {
-    private const string MarkerCategory = "Infil";
-
     private static string GroupNote => FikaClientSpawnPatch.Enabled
         ?"\n\n<color=#B3B3B3><i>With Fika, your choice here overrides spawning together. Without one, in a group set to spawn together, you spawn at the host's location.</i></color>"
         : "";
@@ -63,19 +61,6 @@ public class SpawnPickerWindow : InputNode
         public Transform Marker;
         public Image Image;
         public string Levels;
-    }
-
-    private static void ShowMarkerCategory()
-    {
-        var alwaysShown = new Dictionary<LayerStatus, float>
-        {
-            [LayerStatus.Hidden] = 1f,
-            [LayerStatus.Underneath] = 1f,
-            [LayerStatus.OnTop] = 1f,
-            [LayerStatus.FullReveal] = 1f,
-        };
-        MapMarker.CategoryImageAlphaLayerStatus[MarkerCategory] = alwaysShown;
-        MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory] = alwaysShown;
     }
 
     public static void Open(MapDef mapDef, LocationSettings.Location location, List<SpawnSpot> spots, ESideType side, InputNode screen, DefaultUIButton ownerButton, Action onNext)
@@ -179,7 +164,6 @@ public class SpawnPickerWindow : InputNode
 
     private void Build(MapDef mapDef, List<SpawnSpot> spots)
     {
-        ShowMarkerCategory();
         var background = CreateBackground(gameObject);
 
         BuildMap(background, mapDef, spots);
@@ -219,7 +203,7 @@ public class SpawnPickerWindow : InputNode
 
         var zoom = FitMap(mapView, mapAreaRect);
 
-        var layers = mapView.MapLayerContainer.GetComponentsInChildren<MapLayer>(true);
+        var layers = mapView.GetComponentsInChildren<MapLayer>(true);
         if (layers.Length > 0)
         {
             var topLevel = int.MinValue;
@@ -232,12 +216,13 @@ public class SpawnPickerWindow : InputNode
         // Dims the map and its labels, under our markers; the mask clips it to the map area
         var dim = UIUtils.CreateUIGameObject(mapView.gameObject, "Dim");
         dim.GetRectTransform().sizeDelta = new Vector2(100000f, 100000f);
-        dim.transform.SetSiblingIndex(mapView.MapMarkerContainer.transform.GetSiblingIndex());
         var dimImage = dim.AddComponent<Image>();
         dimImage.color = new Color(0f, 0f, 0f, MapDim);
         dimImage.raycastTarget = false;
 
-        _pulse = UIUtils.CreateUIGameObject(mapView.MapMarkerContainer, "Pulse").AddComponent<Image>();
+        // Our markers sit above the map and dim overlay, independent of DynamicMaps' marker hierarchy.
+        var markerContainer = UIUtils.CreateUIGameObject(mapView.gameObject, "InfilMarkers");
+        _pulse = UIUtils.CreateUIGameObject(markerContainer, "Pulse").AddComponent<Image>();
         _pulse.sprite = GetRingSprite();
         _pulse.raycastTarget = false;
         _pulse.rectTransform.sizeDelta = PulseSize;
@@ -247,27 +232,43 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.SetActive(false);
 
         foreach (var spot in spots)
-        {
-            var marker = mapView.AddMapMarker(new MapMarkerDef
-            {
-                Text = spot.Label.TrimStart('#'),
-                Category = MarkerCategory,
-                Sprite = GetDotSprite(),
-                Position = MathUtils.ConvertToMapPosition(spot.Position),
-                Color = MarkerColor,
-            });
-            marker.transform.localScale = Vector3.one / zoom;
-            marker.Size = MarkerSize;
-            marker.Label.rectTransform.anchoredPosition = new Vector2(0f, MarkerSize.y / 2f - SelectedMarkerSize.y * DotRadius);
+            AddSpawnMarker(markerContainer, spot, layers, zoom, mapDef.CoordinateRotation);
+    }
 
-            var spawnMarker = new SpawnMarker { Spot = spot, Marker = marker.transform, Image = marker.Image, Levels = DescribeLevels(layers, spot) };
-            marker.gameObject.AddComponent<ClickTrigger>().Init(eventData =>
-            {
-                if (eventData.button == PointerEventData.InputButton.Left)
-                    Select(spawnMarker);
-            });
-            _markers.Add(spawnMarker);
-        }
+    private void AddSpawnMarker(GameObject parent, SpawnSpot spot, MapLayer[] layers, float zoom, float rotation)
+    {
+        var marker = UIUtils.CreateUIGameObject(parent, $"Spawn {spot.Label}");
+        var rect = marker.GetRectTransform();
+        rect.anchoredPosition = MathUtils.ConvertToMapPosition(spot.Position);
+        rect.sizeDelta = MarkerSize;
+        rect.localScale = Vector3.one / zoom;
+        rect.localRotation = Quaternion.Euler(0f, 0f, -rotation);
+
+        // A fixed click target around the dot; the visible image grows when selected.
+        marker.AddComponent<Image>().color = Color.clear;
+        var image = UIUtils.CreateUIGameObject(marker, "Dot").AddComponent<Image>();
+        image.sprite = GetDotSprite();
+        image.color = MarkerColor;
+        image.raycastTarget = false;
+        image.rectTransform.sizeDelta = MarkerSize;
+
+        var label = CreateText(marker, "Label", HeaderFont(_ownerButton), 13f, FontStyles.Bold);
+        label.text = spot.Label.TrimStart('#');
+        label.color = MarkerColor;
+        label.alignment = TextAlignmentOptions.Top;
+        label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+        label.rectTransform.pivot = new Vector2(0.5f, 1f);
+        label.rectTransform.sizeDelta = MarkerSize * new Vector2(2.5f, 2f);
+        label.rectTransform.anchoredPosition = new Vector2(0f, MarkerSize.y / 2f - SelectedMarkerSize.y * DotRadius);
+        UIUtils.TrySetTMPOutline(label);
+
+        var spawnMarker = new SpawnMarker { Spot = spot, Marker = rect, Image = image, Levels = DescribeLevels(layers, spot) };
+        marker.AddComponent<ClickTrigger>().Init(eventData =>
+        {
+            if (eventData.button == PointerEventData.InputButton.Left)
+                Select(spawnMarker);
+        });
+        _markers.Add(spawnMarker);
     }
 
     private static float FitMap(MapView mapView, RectTransform mapArea)
@@ -383,9 +384,16 @@ public class SpawnPickerWindow : InputNode
             layer.GetComponent<Graphic>().color = new Color(1f, 1f, 1f, layer.IsOnDefaultLevel ? 1f : OtherLevelAlpha);
         }
 
-        foreach (var label in mapView.MapLabelsContainer.GetComponentsInChildren<MapLabel>(true))
+        var alwaysShown = new Dictionary<LayerStatus, float>
         {
-            label.LabelAlphaLayerStatus = MapMarker.CategoryLabelAlphaLayerStatus[MarkerCategory];
+            [LayerStatus.Hidden] = 1f,
+            [LayerStatus.Underneath] = 1f,
+            [LayerStatus.OnTop] = 1f,
+            [LayerStatus.FullReveal] = 1f,
+        };
+        foreach (var label in mapView.GetComponentsInChildren<MapLabel>(true))
+        {
+            label.LabelAlphaLayerStatus = alwaysShown;
             label.HandleNewLayerStatus(LayerStatus.OnTop);
         }
     }
