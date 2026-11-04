@@ -6,7 +6,7 @@
         <ModGuidPrefix>net.liquidwarp</ModGuidPrefix>
         <Version>2.1.0</Version>
         <ClientSPTVersion>4.1.6</ClientSPTVersion>
-        <DynamicMapsVersion>1.2.1</DynamicMapsVersion>
+        <DynamicMapsVersion>1.3.0</DynamicMapsVersion>
         <Product>$(ModName)</Product>
         <RootNamespace>$(Authors).$(MSBuildProjectName)</RootNamespace>
         <AssemblyName>$(Authors)-$(MSBuildProjectName)</AssemblyName>
