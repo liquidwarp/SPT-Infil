@@ -1,44 +1,44 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using DynamicMaps.Data;
-using DynamicMaps.UI;
 using DynamicMaps.UI.Controls;
 using DynamicMaps.Utils;
-using HarmonyLib;
 using UnityEngine;
 
 namespace Liquidwarp.Infil.Map;
 
 public static class MapDefCatalog
 {
-    private const string DropdownField = "_mapSelectDropdown";
-
-    private static readonly FieldInfo Dropdown = FindDropdown();
-
-    private static FieldInfo FindDropdown()
-    {
-        var field = AccessTools.Field(typeof(ModdedMapScreen), DropdownField);
-        if (field == null)
-            Plugin.LogSource.LogWarning($"DynamicMaps has no {nameof(ModdedMapScreen)}.{DropdownField} to list its maps: no map will offer spawn choices");
-        return field;
-    }
-
     public static MapDef Find(string locationId)
     {
-        var mapScreen = DynamicMaps.Plugin.Instance?.Map;
-        if (locationId == null || mapScreen == null || Dropdown?.GetValue(mapScreen) is not MapSelectDropdown dropdown)
+        var dynamicMaps = DynamicMaps.Plugin.Instance;
+        var mapScreen = dynamicMaps?.Map;
+        if (locationId == null || mapScreen == null)
             return null;
 
-        MapDef found = null;
-        foreach (var mapDef in dropdown.GetMapDefs())
+        var dropdown = mapScreen.GetComponentInChildren<MapSelectDropdown>(true);
+        if (dropdown == null)
+            return null;
+
+        return ChooseMap(dropdown.GetMapDefs(), locationId);
+    }
+
+    private static MapDef ChooseMap(IEnumerable<MapDef> maps, string locationId)
+    {
+        MapDef fallback = null;
+        foreach (var mapDef in maps)
         {
-            if (mapDef.MapInternalNames.Contains(locationId, StringComparer.OrdinalIgnoreCase)
-                && (found == null || string.Compare(mapDef.DisplayName, found.DisplayName, StringComparison.CurrentCulture) < 0))
-                found = mapDef;
+            if (!mapDef.MapInternalNames.Contains(locationId, StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            // Keep the first match in each group, preferring bundled maps over addons.
+            // TODO: smarter selection, maybe with MapVariants integration?
+            if (fallback == null || (!mapDef.IsAddon && fallback.IsAddon))
+                fallback = mapDef;
         }
 
-        return found;
+        return fallback;
     }
 
     private static readonly string[] Directions = ["east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"];
