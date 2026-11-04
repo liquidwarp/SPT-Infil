@@ -192,7 +192,7 @@ public class SpawnPickerWindow : InputNode
         var zoom = FitMap(map.GetRectTransform(), mapAreaRect, mapDef);
 
         var layers = map.GetComponentsInChildren<MapLayer>(true);
-        ShowAllLevels(map, layers);
+        ShowAllLevels(layers);
 
         // Dims the map and its labels, under our markers; the mask clips it to the map area
         var dim = UIUtils.CreateUIGameObject(map, "Dim");
@@ -270,7 +270,10 @@ public class SpawnPickerWindow : InputNode
 
         var labelContainer = UIUtils.CreateUIGameObject(map, "Labels");
         foreach (var labelDef in mapDef.Labels ?? [])
-            MapLabel.Create(labelContainer, labelDef, -mapDef.CoordinateRotation, 1f);
+        {
+            var label = MapLabel.Create(labelContainer, labelDef, -mapDef.CoordinateRotation, 1f);
+            label.HandleNewLayerStatus(LayerStatus.OnTop);
+        }
 
         return map;
     }
@@ -371,7 +374,7 @@ public class SpawnPickerWindow : InputNode
     private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected) =>
         spawnMarker.Image.rectTransform.sizeDelta = selected ? SelectedMarkerSize : MarkerSize;
 
-    private static void ShowAllLevels(GameObject map, MapLayer[] layers)
+    private static void ShowAllLevels(MapLayer[] layers)
     {
         // The default level is opaque, so it goes at the bottom with the other levels see-through above it.
         var order = new (int NotDefault, int Level, int Index)[layers.Length];
@@ -384,19 +387,6 @@ public class SpawnPickerWindow : InputNode
             layer.gameObject.SetActive(true);
             layer.transform.SetAsLastSibling();
             layer.GetComponent<Graphic>().color = new Color(1f, 1f, 1f, layer.IsOnDefaultLevel ? 1f : OtherLevelAlpha);
-        }
-
-        var alwaysShown = new Dictionary<LayerStatus, float>
-        {
-            [LayerStatus.Hidden] = 1f,
-            [LayerStatus.Underneath] = 1f,
-            [LayerStatus.OnTop] = 1f,
-            [LayerStatus.FullReveal] = 1f,
-        };
-        foreach (var label in map.GetComponentsInChildren<MapLabel>(true))
-        {
-            label.LabelAlphaLayerStatus = alwaysShown;
-            label.HandleNewLayerStatus(LayerStatus.OnTop);
         }
     }
 

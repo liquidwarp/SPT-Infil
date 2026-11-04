@@ -12,8 +12,7 @@ public static class MapDefCatalog
 {
     public static MapDef Find(string locationId)
     {
-        var dynamicMaps = DynamicMaps.Plugin.Instance;
-        var mapScreen = dynamicMaps?.Map;
+        var mapScreen = DynamicMaps.Plugin.Instance?.Map;
         if (locationId == null || mapScreen == null)
             return null;
 
@@ -26,7 +25,7 @@ public static class MapDefCatalog
 
     private static MapDef ChooseMap(IEnumerable<MapDef> maps, string locationId)
     {
-        MapDef fallback = null;
+        MapDef firstAddon = null;
         foreach (var mapDef in maps)
         {
             if (!mapDef.MapInternalNames.Contains(locationId, StringComparer.OrdinalIgnoreCase))
@@ -34,11 +33,13 @@ public static class MapDefCatalog
 
             // Keep the first match in each group, preferring bundled maps over addons.
             // TODO: smarter selection, maybe with MapVariants integration?
-            if (fallback == null || (!mapDef.IsAddon && fallback.IsAddon))
-                fallback = mapDef;
+            if (!mapDef.IsAddon)
+                return mapDef;
+
+            firstAddon ??= mapDef;
         }
 
-        return fallback;
+        return firstAddon;
     }
 
     private static readonly string[] Directions = ["east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"];
