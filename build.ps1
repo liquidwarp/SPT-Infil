@@ -1,5 +1,5 @@
 param(
-    [string]$SPTPath = 'E:\Games\SPT\4.1',
+    [string]$SPTPath = 'D:\SPT\4.1 Fika',
 
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
