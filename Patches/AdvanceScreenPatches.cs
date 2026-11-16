@@ -103,11 +103,11 @@ public static class LocationScreenAdvance
         if (MapVariantsCompat.Manages(locationId))
         {
             // Straight from MapVariants' window, whose choice the server just acknowledged
-            var backport = MapVariantsCompat.ChoseBackport(locationId) ?? await MapVariantsCompat.ServesBackport(locationId);
-            if (backport == null)
+            var original = MapVariantsCompat.ChoseOriginal(locationId) ?? await MapVariantsCompat.ServesOriginal(locationId);
+            if (original == null)
                 return $"The server did not say which {locationId} it serves";
-            if (backport.Value)
-                return $"No DynamicMaps map for the backport {locationId}";
+            if (!original.Value)
+                return $"DynamicMaps only has a map for the original {locationId}, not the variant being served";
 
             location = await ServerLocations.Fetch(location._Id);
             if (location == null)

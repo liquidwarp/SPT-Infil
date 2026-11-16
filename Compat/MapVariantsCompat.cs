@@ -13,7 +13,7 @@ public static class MapVariantsCompat
     public const string Guid = "com.lennoxp90.mapvariants";
 
     private const string ApiType = "MapVariants.Client.Api.Maps";
-    private const string Backport = "backport";
+    private const string Original = "original";
     private const string Unmanaged = "unmanaged";
 
     private static bool _apiLoaded;
@@ -44,17 +44,17 @@ public static class MapVariantsCompat
         return serverManages?.Contains(locationId) ?? _clientManages != null;
     }
 
-    public static bool? ChoseBackport(string locationId)
+    public static bool? ChoseOriginal(string locationId)
     {
         LoadApi();
         var decided = _currentLocationId != null && _currentVariant != null && _isBackport != null
             && string.Equals(_currentLocationId(), locationId, StringComparison.OrdinalIgnoreCase)
             && _currentVariant() != null;
 
-        return decided ? _isBackport() : null;
+        return decided ? !_isBackport() : null;
     }
 
-    public static async Task<bool?> ServesBackport(string locationId)
+    public static async Task<bool?> ServesOriginal(string locationId)
     {
         var json = await RequestHandler.GetJsonAsync($"/mapvariants/hostvariant?locationId={Uri.EscapeDataString(locationId)}");
         if (string.IsNullOrEmpty(json))
@@ -64,7 +64,8 @@ public static class MapVariantsCompat
         if (string.IsNullOrEmpty(variant) || string.Equals(variant, Unmanaged, StringComparison.OrdinalIgnoreCase))
             return null;
 
-        return string.Equals(variant, Backport, StringComparison.OrdinalIgnoreCase);
+        // Like Maps.IsBackport: every variant but the original is built on the backport, declared ones included
+        return string.Equals(variant, Original, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void LoadApi()
