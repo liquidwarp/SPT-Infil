@@ -1,8 +1,10 @@
 using System;
 using System.Linq;
+using Comfort.Common;
 using DynamicMaps.Data;
 using DynamicMaps.UI.Controls;
 using DynamicMaps.Utils;
+using EFT.UI;
 using UnityEngine;
 
 namespace Liquidwarp.Infil.Map;
@@ -24,6 +26,12 @@ public static class MapDefCatalog
         if (dropdown == null)
             return null;
 
+        var screen = mapScreen.transform;
+        var parent = screen.parent;
+        var wasActive = mapScreen.gameObject.activeSelf;
+        screen.SetParent(Singleton<CommonUI>.Instance.transform, false);
+        mapScreen.gameObject.SetActive(true);
+
         object selected = null;
         Action<MapDef> capture = mapDef => selected = mapDef;
         dropdown.OnMapSelected += capture;
@@ -34,6 +42,8 @@ public static class MapDefCatalog
         finally
         {
             dropdown.OnMapSelected -= capture;
+            mapScreen.gameObject.SetActive(wasActive);
+            screen.SetParent(parent, false);
         }
 
         var map = selected as MapDef;
