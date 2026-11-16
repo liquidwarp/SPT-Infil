@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using DynamicMaps.Data;
 using DynamicMaps.UI.Controls;
@@ -10,36 +9,35 @@ namespace Liquidwarp.Infil.Map;
 
 public static class MapDefCatalog
 {
+    // The map DynamicMaps shows in raid for this location
     public static MapDef Find(string locationId)
     {
-        var mapScreen = DynamicMaps.Plugin.Instance?.Map;
-        if (locationId == null || mapScreen == null)
+        var plugin = DynamicMaps.Plugin.Instance;
+        if (locationId == null || plugin == null)
+            return null;
+
+        var mapScreen = plugin.Map;
+        if (mapScreen == null)
             return null;
 
         var dropdown = mapScreen.GetComponentInChildren<MapSelectDropdown>(true);
         if (dropdown == null)
             return null;
 
-        return ChooseMap(dropdown.GetMapDefs(), locationId);
-    }
-
-    private static MapDef ChooseMap(IEnumerable<MapDef> maps, string locationId)
-    {
-        MapDef firstAddon = null;
-        foreach (var mapDef in maps)
+        object selected = null;
+        Action<MapDef> capture = mapDef => selected = mapDef;
+        dropdown.OnMapSelected += capture;
+        try
         {
-            if (!mapDef.MapInternalNames.Contains(locationId, StringComparer.OrdinalIgnoreCase))
-                continue;
-
-            // Keep the first match in each group, preferring bundled maps over addons.
-            // TODO: smarter selection, maybe with MapVariants integration?
-            if (!mapDef.IsAddon)
-                return mapDef;
-
-            firstAddon ??= mapDef;
+            dropdown.LoadPreferredMap(locationId);
+        }
+        finally
+        {
+            dropdown.OnMapSelected -= capture;
         }
 
-        return firstAddon;
+        var map = selected as MapDef;
+        return map != null && dropdown.GetMapDefs().Contains(map) ? map : null;
     }
 
     private static readonly string[] Directions = ["east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"];

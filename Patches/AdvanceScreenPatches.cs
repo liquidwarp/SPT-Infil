@@ -6,7 +6,6 @@ using EFT;
 using EFT.UI.Matchmaker;
 using HarmonyLib;
 using JsonType;
-using Liquidwarp.Infil.Compat;
 using Liquidwarp.Infil.Map;
 using Liquidwarp.Infil.Spawn;
 using Liquidwarp.Infil.UI;
@@ -96,23 +95,14 @@ public static class LocationScreenAdvance
         if (controller.RaidSettings.isInTransition)
             return $"{locationId} is reached by transit";
 
+        // The spawn points cached at login may be stale, such as another MapVariants variant's
+        location = await ServerLocations.Fetch(location._Id);
+        if (location == null)
+            return $"The server sent no data for {locationId}";
+
         object mapDef = MapDefCatalog.Find(locationId);
         if (mapDef == null)
             return $"No DynamicMaps map for {locationId}";
-
-        if (MapVariantsCompat.Manages(locationId))
-        {
-            // Straight from MapVariants' window, whose choice the server just acknowledged
-            var original = MapVariantsCompat.ChoseOriginal(locationId) ?? await MapVariantsCompat.ServesOriginal(locationId);
-            if (original == null)
-                return $"The server did not say which {locationId} it serves";
-            if (!original.Value)
-                return $"DynamicMaps only has a map for the original {locationId}, not the variant being served";
-
-            location = await ServerLocations.Fetch(location._Id);
-            if (location == null)
-                return $"The server sent no data for {locationId}";
-        }
 
         return OpenPicker(controller, location, (MapDef)mapDef, advance);
     }

@@ -37,23 +37,11 @@ public static class SpawnSpots
         ["Sandbox_high"] = 100f,
     };
 
-    private static readonly Dictionary<(string, EPlayerSide), (object MapDef, SpawnPointParams[] Source, List<SpawnSpot> Spots)> Cache = new();
-
     public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side, MapDef mapDef)
     {
-        var source = location.SpawnPointParams ?? [];
-        var key = (location.Id, side);
-        if (Cache.TryGetValue(key, out var cached) && ReferenceEquals(cached.MapDef, mapDef) && SameSpawnPoints(cached.Source, source))
-            return cached.Spots;
-
         var maxSpread = MaxSpreadByLocation.TryGetValue(location.Id, out var spread) ? spread : DefaultMaxSpread;
-        var spots = Build(source, side, mapDef, maxSpread);
-        Cache[key] = (mapDef, source, spots);
-        return spots;
+        return Build(location.SpawnPointParams ?? [], side, mapDef, maxSpread);
     }
-
-    private static bool SameSpawnPoints(SpawnPointParams[] a, SpawnPointParams[] b) =>
-        a == b || a.Select(point => point.Id).SequenceEqual(b.Select(point => point.Id));
 
     private static List<SpawnSpot> Build(SpawnPointParams[] source, EPlayerSide side, MapDef mapDef, float maxSpread)
     {
