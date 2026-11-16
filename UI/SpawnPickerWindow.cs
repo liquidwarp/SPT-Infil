@@ -191,6 +191,9 @@ public class SpawnPickerWindow : InputNode
         var map = CreateMapOverview(mapArea, mapDef);
         var zoom = FitMap(map.GetRectTransform(), mapAreaRect, mapDef);
 
+        foreach (var label in map.GetComponentsInChildren<MapLabel>(true))
+            label.GetRectTransform().localScale = Vector3.one / zoom;
+
         var layers = map.GetComponentsInChildren<MapLayer>(true);
         ShowAllLevels(layers);
 
