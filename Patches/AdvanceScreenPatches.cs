@@ -1,7 +1,6 @@
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
-using DynamicMaps.Data;
 using EFT;
 using EFT.UI.Matchmaker;
 using HarmonyLib;
@@ -100,23 +99,25 @@ public static class LocationScreenAdvance
         if (location == null)
             return $"The server sent no data for {locationId}";
 
-        object mapDef = MapDefCatalog.Find(locationId);
-        if (mapDef == null)
-            return $"No DynamicMaps map for {locationId}";
+        var map = MapDefCatalog.Find(locationId);
+        if (map == null)
+            return MapMods.AnyLoaded
+                ? $"No map pack for {locationId}"
+                : $"No Maps Expanded or DynamicMaps map for {locationId}";
 
-        return OpenPicker(controller, location, (MapDef)mapDef, advance);
+        return OpenPicker(controller, location, map, advance);
     }
 
-    private static string OpenPicker(Controller controller, LocationSettings.Location location, MapDef mapDef, Action advance)
+    private static string OpenPicker(Controller controller, LocationSettings.Location location, IMapPack map, Action advance)
     {
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;
         var playerSide = side == ESideType.Savage ? EPlayerSide.Savage : controller.Session.Profile.Info.Side;
-        var spots = SpawnSpots.For(location, playerSide, mapDef);
+        var spots = SpawnSpots.For(location, playerSide, map);
         if (spots.Count == 0)
             return $"No {playerSide} spawn point on {location.Id}";
 
-        SpawnPickerWindow.Open(mapDef, location, spots, side, screen, screen._acceptButton, advance);
+        SpawnPickerWindow.Open(map, location, spots, side, screen, screen._acceptButton, advance);
         return null;
     }
 }

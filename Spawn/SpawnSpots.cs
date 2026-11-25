@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DynamicMaps.Data;
-using DynamicMaps.Utils;
 using EFT;
 using EFT.Game.Spawning;
 using JsonType;
@@ -37,13 +35,13 @@ public static class SpawnSpots
         ["Sandbox_high"] = 100f,
     };
 
-    public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side, MapDef mapDef)
+    public static List<SpawnSpot> For(LocationSettings.Location location, EPlayerSide side, IMapPack map)
     {
         var maxSpread = MaxSpreadByLocation.TryGetValue(location.Id, out var spread) ? spread : DefaultMaxSpread;
-        return Build(location.SpawnPointParams ?? [], side, mapDef, maxSpread);
+        return Build(location.SpawnPointParams ?? [], side, map, maxSpread);
     }
 
-    private static List<SpawnSpot> Build(SpawnPointParams[] source, EPlayerSide side, MapDef mapDef, float maxSpread)
+    private static List<SpawnSpot> Build(SpawnPointParams[] source, EPlayerSide side, IMapPack map, float maxSpread)
     {
         var points = source
             .Where(point => point.Categories.ContainPlayerCategory() && point.Sides.Contain(side) && point.Position != null)
@@ -59,7 +57,7 @@ public static class SpawnSpots
             {
                 Label = $"#{spots.Count + 1}",
                 Position = position,
-                Where = mapDef != null ? MapDefCatalog.DescribeWhere(mapDef, MathUtils.ConvertToMapPosition(position)) : null,
+                Where = map != null ? map.DescribeWhere(MapMath.ConvertToMapPosition(position)) : null,
                 PointIds = new HashSet<string>(members.Select(i => points[i].Id)),
                 PointPositions = memberPositions,
             });

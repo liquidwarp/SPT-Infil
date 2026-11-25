@@ -1,5 +1,5 @@
 param(
-    [string]$SPTPath = 'D:\SPT\4.1 Fika',
+    [string]$SPTPath = 'D:\SPT',
 
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',

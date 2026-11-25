@@ -4,6 +4,10 @@
         <TargetFramework>netstandard2.1</TargetFramework>
         <LangVersion>latest</LangVersion>
         <ModDir>BepInEx\plugins</ModDir>
+        <DynamicMapsDll Condition="'$(DynamicMapsDll)' == '' and Exists('$(SPTPath)\BepInEx\plugins\mpstark-dynamicmaps\DynamicMaps.dll')">$(SPTPath)\BepInEx\plugins\mpstark-dynamicmaps\DynamicMaps.dll</DynamicMapsDll>
+        <DynamicMapsDll Condition="'$(DynamicMapsDll)' == ''">$(MSBuildThisFileDirectory)refs\DynamicMaps.dll</DynamicMapsDll>
+        <MapsExpandedDll Condition="'$(MapsExpandedDll)' == '' and Exists('$(SPTPath)\BepInEx\plugins\MapsExpanded\MapsExpanded.dll')">$(SPTPath)\BepInEx\plugins\MapsExpanded\MapsExpanded.dll</MapsExpandedDll>
+        <MapsExpandedDll Condition="'$(MapsExpandedDll)' == ''">$(MSBuildThisFileDirectory)..\spt-maps-expanded\Plugin\bin\Release\netstandard2.1\MapsExpanded.dll</MapsExpandedDll>
     </PropertyGroup>
 
     <ItemDefinitionGroup>
@@ -26,7 +30,10 @@
             <HintPath>$(SPTPath)\EscapeFromTarkov_Data\Managed\Comfort.dll</HintPath>
         </Reference>
         <Reference Include="DynamicMaps">
-            <HintPath>$(SPTPath)\BepInEx\plugins\mpstark-dynamicmaps\DynamicMaps.dll</HintPath>
+            <HintPath>$(DynamicMapsDll)</HintPath>
+        </Reference>
+        <Reference Include="MapsExpanded">
+            <HintPath>$(MapsExpandedDll)</HintPath>
         </Reference>
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(SPTPath)\EscapeFromTarkov_Data\Managed\Newtonsoft.Json.dll</HintPath>
@@ -62,5 +69,7 @@
 
     <Target Name="RequireSPTPath" BeforeTargets="ResolveAssemblyReferences">
         <Error Condition="'$(SPTPath)' == ''" Text="Missing SPT path" />
+        <Error Condition="!Exists('$(DynamicMapsDll)')" Text="DynamicMaps.dll not found (install DynamicMaps, or place it at refs\DynamicMaps.dll)" />
+        <Error Condition="!Exists('$(MapsExpandedDll)')" Text="MapsExpanded.dll not found (install Maps Expanded, or build spt-maps-expanded)" />
     </Target>
 </Project>

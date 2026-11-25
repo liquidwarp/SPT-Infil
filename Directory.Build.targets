@@ -14,6 +14,7 @@ internal static class MyModInfo
     public const string MOD_VERSION = "$(Version)"%3B
     public const string CLIENT_SPT_VERSION = "$(ClientSPTVersion)"%3B
     public const string DYNAMIC_MAPS_VERSION = "$(DynamicMapsVersion)"%3B
+    public const string MAPS_EXPANDED_VERSION = "$(MapsExpandedVersion)"%3B
 }
 ]]></MyModInfoText>
         </PropertyGroup>
@@ -25,7 +26,12 @@ internal static class MyModInfo
     </Target>
 
     <Target Name="CheckLoadSafety" AfterTargets="CoreCompile" Condition="'$(CheckLoadSafety)' == 'True'">
-        <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)check-load-safety.ps1&quot; -AssemblyPath &quot;@(IntermediateAssembly->'%(FullPath)')&quot;" StandardOutputImportance="High" />
+        <PropertyGroup>
+            <_LoadSafetyShell Condition="Exists('$(ProgramFiles)\PowerShell\7\pwsh.exe')">&quot;$(ProgramFiles)\PowerShell\7\pwsh.exe&quot;</_LoadSafetyShell>
+            <_LoadSafetyShell Condition="'$(_LoadSafetyShell)' == '' and Exists('$(ProgramFiles)\PowerShell\7-preview\pwsh.exe')">&quot;$(ProgramFiles)\PowerShell\7-preview\pwsh.exe&quot;</_LoadSafetyShell>
+            <_LoadSafetyShell Condition="'$(_LoadSafetyShell)' == ''">pwsh</_LoadSafetyShell>
+        </PropertyGroup>
+        <Exec Command="$(_LoadSafetyShell) -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)check-load-safety.ps1&quot; -AssemblyPath &quot;@(IntermediateAssembly->'%(FullPath)')&quot;" StandardOutputImportance="High" />
     </Target>
 
     <Target Name="InstallMod" AfterTargets="PostBuildEvent" Condition="'$(InstallMod)' == 'True'">

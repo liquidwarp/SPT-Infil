@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DynamicMaps.Data;
-using DynamicMaps.UI.Components;
-using DynamicMaps.Utils;
 using EFT;
 using EFT.InputSystem;
 using EFT.UI;
 using JsonType;
 using Liquidwarp.Infil.Compat;
+using Liquidwarp.Infil.Map;
 using Liquidwarp.Infil.Spawn;
 using TMPro;
 using UnityEngine;
@@ -63,7 +61,7 @@ public class SpawnPickerWindow : InputNode
         public string Levels;
     }
 
-    public static void Open(MapDef mapDef, LocationSettings.Location location, List<SpawnSpot> spots, ESideType side, InputNode screen, DefaultUIButton ownerButton, Action onNext)
+    public static void Open(IMapPack map, LocationSettings.Location location, List<SpawnSpot> spots, ESideType side, InputNode screen, DefaultUIButton ownerButton, Action onNext)
     {
         CloseOpen();
 
@@ -80,7 +78,7 @@ public class SpawnPickerWindow : InputNode
 
         try
         {
-            _instance.Build(mapDef, spots);
+            _instance.Build(map, spots);
         }
         catch
         {
@@ -153,7 +151,7 @@ public class SpawnPickerWindow : InputNode
 
     private static GameObject CreateBackground(GameObject parent)
     {
-        var background = UIUtils.CreateUIGameObject(parent, "Background");
+        var background = UiHelpers.CreateUIGameObject(parent, "Background");
         var backgroundRect = background.GetRectTransform();
         backgroundRect.anchorMin = Vector2.zero;
         backgroundRect.anchorMax = Vector2.one;
@@ -162,20 +160,20 @@ public class SpawnPickerWindow : InputNode
         return background;
     }
 
-    private void Build(MapDef mapDef, List<SpawnSpot> spots)
+    private void Build(IMapPack map, List<SpawnSpot> spots)
     {
         var background = CreateBackground(gameObject);
 
-        BuildMap(background, mapDef, spots);
+        BuildMap(background, map, spots);
         BuildPanel(background);
 
         var chosen = SpawnChoiceStore.Get(_location.Id, _side);
         Select(chosen != null ? _markers.FirstOrDefault(marker => marker.Spot.PointIds.SetEquals(chosen.PointIds)) : null);
     }
 
-    private void BuildMap(GameObject parent, MapDef mapDef, List<SpawnSpot> spots)
+    private void BuildMap(GameObject parent, IMapPack mapPack, List<SpawnSpot> spots)
     {
-        var mapArea = UIUtils.CreateUIGameObject(parent, "MapArea");
+        var mapArea = UiHelpers.CreateUIGameObject(parent, "MapArea");
         var mapAreaRect = mapArea.GetRectTransform();
         mapAreaRect.sizeDelta = MapSize;
         mapAreaRect.anchoredPosition = new Vector2(-(PanelSize.x + 20f) / 2f, 0f);
@@ -188,25 +186,23 @@ public class SpawnPickerWindow : InputNode
                 Select(null);
         });
 
-        var map = CreateMapOverview(mapArea, mapDef);
-        var zoom = FitMap(map.GetRectTransform(), mapAreaRect, mapDef);
+        var map = mapPack.CreateOverview(mapArea);
+        var zoom = FitMap(map.GetRectTransform(), mapAreaRect, mapPack);
+        mapPack.ScaleLabels(map, zoom);
 
-        foreach (var label in map.GetComponentsInChildren<MapLabel>(true))
-            label.GetRectTransform().localScale = Vector3.one / zoom;
-
-        var layers = map.GetComponentsInChildren<MapLayer>(true);
-        ShowAllLevels(layers);
+        var floors = mapPack.GetFloors(map);
+        ShowAllLevels(floors);
 
         // Dims the map and its labels, under our markers; the mask clips it to the map area
-        var dim = UIUtils.CreateUIGameObject(map, "Dim");
+        var dim = UiHelpers.CreateUIGameObject(map, "Dim");
         dim.GetRectTransform().sizeDelta = new Vector2(100000f, 100000f);
         var dimImage = dim.AddComponent<Image>();
         dimImage.color = new Color(0f, 0f, 0f, MapDim);
         dimImage.raycastTarget = false;
 
-        // Our markers sit above the map and dim overlay, independent of DynamicMaps' marker hierarchy.
-        var markerContainer = UIUtils.CreateUIGameObject(map, "InfilMarkers");
-        _pulse = UIUtils.CreateUIGameObject(markerContainer, "Pulse").AddComponent<Image>();
+        // Our markers sit above the map and dim overlay, independent of the map mod's marker hierarchy.
+        var markerContainer = UiHelpers.CreateUIGameObject(map, "InfilMarkers");
+        _pulse = UiHelpers.CreateUIGameObject(markerContainer, "Pulse").AddComponent<Image>();
         _pulse.sprite = GetRingSprite();
         _pulse.raycastTarget = false;
         _pulse.rectTransform.sizeDelta = PulseSize;
@@ -216,21 +212,21 @@ public class SpawnPickerWindow : InputNode
         _pulse.gameObject.SetActive(false);
 
         foreach (var spot in spots)
-            AddSpawnMarker(markerContainer, spot, layers, zoom, mapDef.CoordinateRotation);
+            AddSpawnMarker(markerContainer, spot, floors, zoom, mapPack.CoordinateRotation);
     }
 
-    private void AddSpawnMarker(GameObject parent, SpawnSpot spot, MapLayer[] layers, float zoom, float rotation)
+    private void AddSpawnMarker(GameObject parent, SpawnSpot spot, IMapFloor[] floors, float zoom, float rotation)
     {
-        var marker = UIUtils.CreateUIGameObject(parent, $"Spawn {spot.Label}");
+        var marker = UiHelpers.CreateUIGameObject(parent, $"Spawn {spot.Label}");
         var rect = marker.GetRectTransform();
-        rect.anchoredPosition = MathUtils.ConvertToMapPosition(spot.Position);
+        rect.anchoredPosition = MapMath.ConvertToMapPosition(spot.Position);
         rect.sizeDelta = MarkerSize;
         rect.localScale = Vector3.one / zoom;
         rect.localRotation = Quaternion.Euler(0f, 0f, -rotation);
 
         // A fixed click target around the dot; the visible image grows when selected.
         marker.AddComponent<Image>().color = Color.clear;
-        var image = UIUtils.CreateUIGameObject(marker, "Dot").AddComponent<Image>();
+        var image = UiHelpers.CreateUIGameObject(marker, "Dot").AddComponent<Image>();
         image.sprite = GetDotSprite();
         image.color = MarkerColor;
         image.raycastTarget = false;
@@ -244,9 +240,9 @@ public class SpawnPickerWindow : InputNode
         label.rectTransform.pivot = new Vector2(0.5f, 1f);
         label.rectTransform.sizeDelta = MarkerSize * new Vector2(2.5f, 2f);
         label.rectTransform.anchoredPosition = new Vector2(0f, MarkerSize.y / 2f - SelectedMarkerSize.y * DotRadius);
-        UIUtils.TrySetTMPOutline(label);
+        UiHelpers.TrySetTMPOutline(label);
 
-        var spawnMarker = new SpawnMarker { Spot = spot, Marker = rect, Image = image, Levels = DescribeLevels(layers, spot) };
+        var spawnMarker = new SpawnMarker { Spot = spot, Marker = rect, Image = image, Levels = DescribeLevels(floors, spot) };
         marker.AddComponent<ClickTrigger>().Init(eventData =>
         {
             if (eventData.button == PointerEventData.InputButton.Left)
@@ -255,39 +251,13 @@ public class SpawnPickerWindow : InputNode
         _markers.Add(spawnMarker);
     }
 
-    private static GameObject CreateMapOverview(GameObject parent, MapDef mapDef)
-    {
-        var map = UIUtils.CreateUIGameObject(parent, "InfilMap");
-        map.AddComponent<Canvas>();
-        map.AddComponent<GraphicRaycaster>();
-        var rect = map.GetRectTransform();
-        rect.sizeDelta = MathUtils.GetRotatedRectangle(mapDef.Bounds.Max - mapDef.Bounds.Min, mapDef.CoordinateRotation);
-        rect.localRotation = Quaternion.Euler(0f, 0f, mapDef.CoordinateRotation);
-
-        var layerContainer = UIUtils.CreateUIGameObject(map, "Layers");
-        foreach (var pair in mapDef.Layers)
-        {
-            var layer = MapLayer.Create(layerContainer, pair.Key, pair.Value, -mapDef.CoordinateRotation);
-            layer.IsOnDefaultLevel = layer.Level == mapDef.DefaultLevel;
-        }
-
-        var labelContainer = UIUtils.CreateUIGameObject(map, "Labels");
-        foreach (var labelDef in mapDef.Labels ?? [])
-        {
-            var label = MapLabel.Create(labelContainer, labelDef, -mapDef.CoordinateRotation, 1f);
-            label.HandleNewLayerStatus(LayerStatus.OnTop);
-        }
-
-        return map;
-    }
-
-    private static float FitMap(RectTransform rect, RectTransform mapArea, MapDef mapDef)
+    private static float FitMap(RectTransform rect, RectTransform mapArea, IMapPack map)
     {
         var zoom = Mathf.Min(mapArea.rect.width / rect.sizeDelta.x, mapArea.rect.height / rect.sizeDelta.y) / 1.1f;
         rect.localScale = Vector3.one * zoom;
 
-        var center = MathUtils.GetMidpoint(mapDef.Bounds.Min, mapDef.Bounds.Max);
-        rect.anchoredPosition = -MathUtils.GetRotatedVector2(center, mapDef.CoordinateRotation) * zoom;
+        var center = MapMath.GetMidpoint(map.BoundsMin, map.BoundsMax);
+        rect.anchoredPosition = -MapMath.GetRotatedVector2(center, map.CoordinateRotation) * zoom;
 
         return zoom;
     }
@@ -296,7 +266,7 @@ public class SpawnPickerWindow : InputNode
     {
         var font = HeaderFont(_ownerButton);
 
-        var panel = UIUtils.CreateUIGameObject(parent, "Panel");
+        var panel = UiHelpers.CreateUIGameObject(parent, "Panel");
         var panelRect = panel.GetRectTransform();
         panelRect.sizeDelta = PanelSize;
         panelRect.anchoredPosition = new Vector2((MapSize.x + 20f) / 2f, 0f);
@@ -377,51 +347,51 @@ public class SpawnPickerWindow : InputNode
     private static void SetMarkerLook(SpawnMarker spawnMarker, bool selected) =>
         spawnMarker.Image.rectTransform.sizeDelta = selected ? SelectedMarkerSize : MarkerSize;
 
-    private static void ShowAllLevels(MapLayer[] layers)
+    private static void ShowAllLevels(IMapFloor[] floors)
     {
         // The default level is opaque, so it goes at the bottom with the other levels see-through above it.
-        var order = new (int NotDefault, int Level, int Index)[layers.Length];
-        for (var i = 0; i < layers.Length; i++)
-            order[i] = (layers[i].IsOnDefaultLevel ? 0 : 1, layers[i].Level, i);
+        var order = new (int NotDefault, int Level, int Index)[floors.Length];
+        for (var i = 0; i < floors.Length; i++)
+            order[i] = (floors[i].IsOnDefaultLevel ? 0 : 1, floors[i].Level, i);
         Array.Sort(order);
         foreach (var (_, _, index) in order)
         {
-            var layer = layers[index];
-            layer.gameObject.SetActive(true);
-            layer.transform.SetAsLastSibling();
-            layer.GetComponent<Graphic>().color = new Color(1f, 1f, 1f, layer.IsOnDefaultLevel ? 1f : OtherLevelAlpha);
+            var floor = floors[index];
+            floor.GameObject.SetActive(true);
+            floor.Transform.SetAsLastSibling();
+            floor.Graphic.color = new Color(1f, 1f, 1f, floor.IsOnDefaultLevel ? 1f : OtherLevelAlpha);
         }
     }
 
-    private static string DescribeLevels(MapLayer[] layers, SpawnSpot spot)
+    private static string DescribeLevels(IMapFloor[] floors, SpawnSpot spot)
     {
-        if (layers.Length == 0)
+        if (floors.Length == 0)
             return null;
 
-        MapLayer defaultLayer = null;
-        foreach (var layer in layers)
+        IMapFloor defaultFloor = null;
+        foreach (var floor in floors)
         {
-            if (layer.IsOnDefaultLevel)
+            if (floor.IsOnDefaultLevel)
             {
-                defaultLayer = layer;
+                defaultFloor = floor;
                 break;
             }
         }
 
-        var counts = new Dictionary<MapLayer, int>();
+        var counts = new Dictionary<IMapFloor, int>();
         var others = 0;
         foreach (var position in spot.PointPositions)
         {
-            var layer = FindLayer(layers, MathUtils.ConvertToMapPosition(position)) ?? defaultLayer;
-            if (layer == null)
+            var floor = FindFloor(floors, MapMath.ConvertToMapPosition(position)) ?? defaultFloor;
+            if (floor == null)
                 others++;
             else
-                counts[layer] = counts.TryGetValue(layer, out var count) ? count + 1 : 1;
+                counts[floor] = counts.TryGetValue(floor, out var count) ? count + 1 : 1;
         }
 
         var lines = new List<(int Level, string Text)>();
-        foreach (var (layer, count) in counts)
-            lines.Add((layer.Level, $"{layer.name}: {count}"));
+        foreach (var (floor, count) in counts)
+            lines.Add((floor.Level, $"{floor.Name}: {count}"));
         if (others > 0)
             lines.Add((int.MaxValue, $"Other: {others}"));
         lines.Sort();
@@ -429,18 +399,18 @@ public class SpawnPickerWindow : InputNode
         return string.Join("\n", lines.Select(line => line.Text));
     }
 
-    private static MapLayer FindLayer(MapLayer[] layers, Vector3 position)
+    private static IMapFloor FindFloor(IMapFloor[] floors, Vector3 position)
     {
-        MapLayer best = null;
+        IMapFloor best = null;
         var bestVolume = float.MaxValue;
-        foreach (var layer in layers)
+        foreach (var floor in floors)
         {
-            if (!layer.IsCoordinateInLayer(position))
+            if (!floor.Contains(position))
                 continue;
 
-            var volume = layer.GetMatchingBoundVolume(position);
+            var volume = floor.BoundVolume(position);
             if (volume < bestVolume)
-                (best, bestVolume) = (layer, volume);
+                (best, bestVolume) = (floor, volume);
         }
 
         return best;
@@ -566,7 +536,7 @@ public class SpawnPickerWindow : InputNode
 
     internal static TextMeshProUGUI CreateText(GameObject parent, string name, TMP_FontAsset font, float size, FontStyles style)
     {
-        var text = UIUtils.CreateUIGameObject(parent, name).AddComponent<TextMeshProUGUI>();
+        var text = UiHelpers.CreateUIGameObject(parent, name).AddComponent<TextMeshProUGUI>();
         if (font != null)
             text.font = font;
         text.fontSize = size;
