@@ -41,7 +41,7 @@ public class ConfirmationScreenPatch : ModulePatch
             Object.Destroy(_text.gameObject);
     }
 
-    private static string Describe(RaidSettings raidSettings)
+    internal static string Describe(RaidSettings raidSettings)
     {
         var spot = SpawnChoiceStore.Get(raidSettings.SelectedLocation?.Id, raidSettings.Side);
         if (spot == null)

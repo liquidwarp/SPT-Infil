@@ -4,6 +4,7 @@
         <TargetFramework>netstandard2.1</TargetFramework>
         <LangVersion>latest</LangVersion>
         <ModDir>BepInEx\plugins</ModDir>
+        <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**</DefaultItemExcludes>
     </PropertyGroup>
 
     <ItemDefinitionGroup>
@@ -11,6 +12,10 @@
             <Private>false</Private>
         </Reference>
     </ItemDefinitionGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Liquidwarp-Infil.Tests" />
+    </ItemGroup>
 
     <ItemGroup>
         <Reference Include="0Harmony">

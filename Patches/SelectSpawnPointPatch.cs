@@ -26,23 +26,7 @@ public class SelectSpawnPointPatch : ModulePatch
 
         try
         {
-            if (!IsOwnProfile(profileId))
-                return;
-
-            var spot = SpawnChoiceStore.GetForRaid(side);
-            if (spot == null)
-                return;
-
-            SpawnChoiceStore.MarkReached();
-            var points = __instance._spawnPoints.Where(p => spot.PointIds.Contains(p.Id)).ToList();
-            if (points.Count == 0)
-            {
-                Plugin.LogSource.LogWarning($"Chosen spawn {spot.Label} does not exist on this map: keeping the default spawn");
-                return;
-            }
-
-            __result = points.Contains(__result) ? __result : SafestPoint(__instance, points, side, person);
-            Plugin.LogSource.LogInfo($"Spawning at {spot.Label}: point {__result.Id} {__result.Position}");
+            Apply(__instance, side, person, profileId, PatchConstants.BackEndSession, ref __result);
         }
         catch (Exception ex)
         {
@@ -50,10 +34,25 @@ public class SelectSpawnPointPatch : ModulePatch
         }
     }
 
-    private static bool IsOwnProfile(string profileId)
+    internal static void Apply(SpawnSystem spawnSystem, EPlayerSide side, IPlayer person, string profileId, IEftSession session, ref ISpawnPoint result)
     {
-        var session = PatchConstants.BackEndSession;
-        return profileId != null && session != null && (profileId == session.Profile?.Id || profileId == session.ProfileOfPet?.Id);
+        if (profileId == null || session == null || (profileId != session.Profile?.Id && profileId != session.ProfileOfPet?.Id))
+            return;
+
+        var spot = SpawnChoiceStore.GetForRaid(side);
+        if (spot == null)
+            return;
+
+        SpawnChoiceStore.MarkReached();
+        var points = spawnSystem._spawnPoints.Where(p => spot.PointIds.Contains(p.Id)).ToList();
+        if (points.Count == 0)
+        {
+            Plugin.LogSource.LogWarning($"Chosen spawn {spot.Label} does not exist on this map: keeping the default spawn");
+            return;
+        }
+
+        result = points.Contains(result) ? result : SafestPoint(spawnSystem, points, side, person);
+        Plugin.LogSource.LogInfo($"Spawning at {spot.Label}: point {result.Id} {result.Position}");
     }
 
     private static ISpawnPoint SafestPoint(SpawnSystem spawnSystem, List<ISpawnPoint> points, EPlayerSide side, IPlayer person)

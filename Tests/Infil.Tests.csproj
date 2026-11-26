@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <IsTestProject>true</IsTestProject>
+        <IsPackable>false</IsPackable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDependencyFile>true</GenerateDependencyFile>
+        <!-- The test assembly is never a BepInEx plugin or a release artifact. -->
+        <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
+        <ManagedDir>$(SPTPath)\EscapeFromTarkov_Data\Managed</ManagedDir>
+        <CoreDir>$(SPTPath)\BepInEx\core</CoreDir>
+        <PluginsDir>$(SPTPath)\BepInEx\plugins</PluginsDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Infil.csproj" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+        <PackageReference Include="NUnit" Version="4.3.2" />
+        <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+        <AssemblyMetadata Include="SPTPath" Value="$(SPTPath)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="$(ManagedDir)\Assembly-CSharp.dll" />
+        <Reference Include="$(ManagedDir)\Comfort.dll" />
+        <Reference Include="$(ManagedDir)\Sirenix.Serialization.dll" />
+        <Reference Include="$(ManagedDir)\Unity.VectorGraphics.dll" />
+        <Reference Include="$(ManagedDir)\UnityEngine.CoreModule.dll" />
+        <Reference Include="$(ManagedDir)\UnityEngine.UI.dll" />
+        <Reference Include="$(CoreDir)\0Harmony.dll" />
+        <Reference Include="$(CoreDir)\BepInEx.dll" />
+        <Reference Include="$(PluginsDir)\spt\spt-custom.dll" />
+        <Reference Include="$(PluginsDir)\spt\spt-reflection.dll" />
+        <Reference Include="$(PluginsDir)\mpstark-dynamicmaps\DynamicMaps.dll" />
+    </ItemGroup>
+
+</Project>

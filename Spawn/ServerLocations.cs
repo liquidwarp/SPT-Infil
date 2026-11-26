@@ -17,7 +17,7 @@ public static class ServerLocations
         return string.IsNullOrEmpty(json) ? null : await Task.Run(() => Extract(json, locationKey));
     }
 
-    private static LocationSettings.Location Extract(string json, string locationKey)
+    internal static LocationSettings.Location Extract(string json, string locationKey)
     {
         using var reader = new JsonTextReader(new StringReader(json));
         while (reader.Read() && !(reader.TokenType == JsonToken.StartObject && reader.Path == "data.locations"))

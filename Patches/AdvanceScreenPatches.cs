@@ -107,7 +107,7 @@ public static class LocationScreenAdvance
         return OpenPicker(controller, location, (MapDef)mapDef, advance);
     }
 
-    private static string OpenPicker(Controller controller, LocationSettings.Location location, MapDef mapDef, Action advance)
+    internal static string OpenPicker(Controller controller, LocationSettings.Location location, MapDef mapDef, Action advance)
     {
         var screen = controller.Screen;
         var side = controller.RaidSettings.Side;

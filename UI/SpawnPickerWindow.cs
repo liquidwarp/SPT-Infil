@@ -393,7 +393,7 @@ public class SpawnPickerWindow : InputNode
         }
     }
 
-    private static string DescribeLevels(MapLayer[] layers, SpawnSpot spot)
+    internal static string DescribeLevels(MapLayer[] layers, SpawnSpot spot)
     {
         if (layers.Length == 0)
             return null;
@@ -429,7 +429,7 @@ public class SpawnPickerWindow : InputNode
         return string.Join("\n", lines.Select(line => line.Text));
     }
 
-    private static MapLayer FindLayer(MapLayer[] layers, Vector3 position)
+    internal static MapLayer FindLayer(MapLayer[] layers, Vector3 position)
     {
         MapLayer best = null;
         var bestVolume = float.MaxValue;
